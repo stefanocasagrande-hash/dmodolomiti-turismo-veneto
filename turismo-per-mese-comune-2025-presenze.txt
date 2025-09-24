@@ -1,0 +1,53 @@
+progressivo;anno;provenienza;Comuni;Gen Presenze;Feb Presenze;Mar Presenze;Apr Presenze;Mag Presenze;Giu Presenze;Lug Presenze;Ago Presenze;Set Presenze;Ott Presenze;Nov Presenze;Dic Presenze;Totale presenze
+143;2025;Italiani + stranieri;25001 - Agordo;1769;1504;1277;1347;1674;2379;3541;0;0;0;0;0;13491
+144;2025;Italiani + stranieri;25003 - Alleghe;22080;27090;15401;2741;4592;12658;30686;0;0;0;0;0;115248
+145;2025;Italiani + stranieri;25004 - Arsié;152;103;75;1513;2994;7130;12355;0;0;0;0;0;24322
+146;2025;Italiani + stranieri;25005 - Auronzo di Cadore;14943;16367;6807;3114;8492;46741;80395;0;0;0;0;0;176859
+147;2025;Italiani + stranieri;25006 - Belluno;9038;8585;8779;10245;11131;12806;17491;0;0;0;0;0;78075
+148;2025;Italiani + stranieri;25007 - Borca di Cadore;8411;10122;6569;5110;5167;13699;19840;0;0;0;0;0;68918
+149;2025;Italiani + stranieri;25008 - Calalzo di Cadore;2966;2197;1976;2441;3233;6455;12101;0;0;0;0;0;31369
+150;2025;Italiani + stranieri;25010 - Cencenighe Agordino;315;600;169;157;302;617;1287;0;0;0;0;0;3447
+151;2025;Italiani + stranieri;25011 - Cesiomaggiore;160;105;115;291;474;517;941;0;0;0;0;0;2603
+152;2025;Italiani + stranieri;25012 - Chies d'Alpago;723;367;337;648;384;379;1265;0;0;0;0;0;4103
+153;2025;Italiani + stranieri;25013 - Cibiana di Cadore;527;571;152;275;258;1096;1804;0;0;0;0;0;4683
+154;2025;Italiani + stranieri;25014 - Colle Santa Lucia;2092;2507;1567;457;671;1743;3245;0;0;0;0;0;12282
+155;2025;Italiani + stranieri;25015 - Comelico Superiore;7941;9498;4824;1139;1820;7568;21161;0;0;0;0;0;53951
+156;2025;Italiani + stranieri;25016 - Cortina d'Ampezzo;99032;109335;79642;36264;33480;106852;152819;0;0;0;0;0;617424
+157;2025;Italiani + stranieri;25017 - Danta di Cadore;261;239;105;178;230;599;1233;0;0;0;0;0;2845
+158;2025;Italiani + stranieri;25018 - Domegge di Cadore;538;282;225;309;539;1322;3035;0;0;0;0;0;6250
+159;2025;Italiani + stranieri;25019 - Falcade;39543;43477;19964;2975;1304;15451;52444;0;0;0;0;0;175158
+160;2025;Italiani + stranieri;25021 - Feltre;3264;3201;3233;4600;3980;4734;5887;0;0;0;0;0;28899
+161;2025;Italiani + stranieri;25022 - Fonzaso;117;95;174;175;183;226;290;0;0;0;0;0;1260
+162;2025;Italiani + stranieri;25023 - Canale d'Agordo;3384;3510;1812;1429;1561;5113;12418;0;0;0;0;0;29227
+163;2025;Italiani + stranieri;25025 - Gosaldo;142;45;3;30;88;334;2074;0;0;0;0;0;2716
+164;2025;Italiani + stranieri;25026 - Lamon;480;290;229;433;803;1263;2213;0;0;0;0;0;5711
+165;2025;Italiani + stranieri;25029 - Limana;463;305;463;607;455;698;1618;0;0;0;0;0;4609
+166;2025;Italiani + stranieri;25030 - Livinallongo del Col di Lana;66882;69205;50163;2280;2077;27076;56803;0;0;0;0;0;274486
+167;2025;Italiani + stranieri;25032 - Lorenzago di Cadore;792;867;370;829;1109;1487;2634;0;0;0;0;0;8088
+168;2025;Italiani + stranieri;25033 - Lozzo di Cadore;249;287;210;240;454;871;1583;0;0;0;0;0;3894
+169;2025;Italiani + stranieri;25036 - Pedavena;729;555;717;960;792;1228;1560;0;0;0;0;0;6541
+170;2025;Italiani + stranieri;25037 - Perarolo di Cadore;312;278;177;250;300;665;1491;0;0;0;0;0;3473
+171;2025;Italiani + stranieri;25039 - Pieve di Cadore;3093;2652;1984;2879;3748;6685;12535;0;0;0;0;0;33576
+172;2025;Italiani + stranieri;25040 - Ponte nelle Alpi;1501;1891;1796;1679;2269;2494;3923;0;0;0;0;0;15553
+173;2025;Italiani + stranieri;25043 - Rivamonte Agordino;315;427;470;432;556;1011;1402;0;0;0;0;0;4613
+174;2025;Italiani + stranieri;25044 - Rocca Pietore;24158;27640;16738;2663;2562;15844;44202;0;0;0;0;0;133807
+175;2025;Italiani + stranieri;25045 - San Gregorio nelle Alpi;87;60;97;211;196;293;911;0;0;0;0;0;1855
+176;2025;Italiani + stranieri;25046 - San Nicolò di Comelico;800;738;351;237;605;1147;2313;0;0;0;0;0;6191
+177;2025;Italiani + stranieri;25047 - San Pietro di Cadore;658;368;274;332;445;1472;5056;0;0;0;0;0;8605
+178;2025;Italiani + stranieri;25048 - Santa Giustina;471;506;451;523;441;731;2800;0;0;0;0;0;5923
+179;2025;Italiani + stranieri;25049 - San Tomaso Agordino;373;656;295;190;396;508;1069;0;0;0;0;0;3487
+180;2025;Italiani + stranieri;25050 - Santo Stefano di Cadore;3123;2164;1570;1621;2248;5078;9857;0;0;0;0;0;25661
+181;2025;Italiani + stranieri;25051 - San Vito di Cadore;20527;22555;15943;7997;8564;17891;29497;0;0;0;0;0;122974
+182;2025;Italiani + stranieri;25053 - Sedico;686;640;731;930;1080;1142;1836;0;0;0;0;0;7045
+183;2025;Italiani + stranieri;25054 - Selva di Cadore;18417;18940;8331;1038;1754;9285;14658;0;0;0;0;0;72423
+184;2025;Italiani + stranieri;25056 - Sospirolo;915;825;844;1309;1533;1818;2676;0;0;0;0;0;9920
+185;2025;Italiani + stranieri;25058 - Sovramonte;674;2;110;256;358;1904;4291;0;0;0;0;0;7595
+186;2025;Italiani + stranieri;25059 - Taibon Agordino;551;581;357;320;314;1240;2154;0;0;0;0;0;5517
+187;2025;Italiani + stranieri;25063 - Valle di Cadore;1758;2063;1075;1527;2218;3946;6422;0;0;0;0;0;19009
+188;2025;Italiani + stranieri;25066 - Vodo Cadore;1913;2170;1072;1279;1795;3108;4914;0;0;0;0;0;16251
+189;2025;Italiani + stranieri;25067 - Voltago Agordino;751;423;395;583;475;1303;2753;0;0;0;0;0;6683
+190;2025;Italiani + stranieri;25069 - Zoppé di Cadore;130;172;50;154;135;241;354;0;0;0;0;0;1236
+191;2025;Italiani + stranieri;25072 - Alpago;242;428;413;1534;4995;9527;10986;0;0;0;0;0;28125
+192;2025;Italiani + stranieri;25073 - Val di Zoldo;29048;27856;17758;2467;1805;15292;43141;0;0;0;0;0;137367
+193;2025;Italiani + stranieri;25074 - Borgo Valbelluna;1210;1021;1374;1631;1837;2495;6478;0;0;0;0;0;16046
+194;2025;Italiani + stranieri;25075 - Setteville;1425;1649;1913;1780;1845;1481;1947;0;0;0;0;0;12040
