@@ -3,6 +3,20 @@ import plotly.express as px
 import pandas as pd
 from etl import load_data
 
+# ======================
+# AUTENTICAZIONE BASE
+# ======================
+PASSWORD = "segreta123"  # <-- qui scegli tu la password da condividere con i colleghi
+
+st.title("🔒 Dashboard Turistica Veneto")
+
+password = st.text_input("Inserisci password", type="password")
+
+if password != PASSWORD:
+    if password:
+        st.error("❌ Password sbagliata")
+    st.stop()  # interrompe l'esecuzione qui finché la password non è giusta
+
 # Carica i dati
 data = load_data("dati-mensili-per-comune")
 
