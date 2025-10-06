@@ -3,31 +3,37 @@ import os
 
 def load_data(data_folder="dati-mensili-per-comune"):
     all_dfs = []
+    if not os.path.exists(data_folder):
+        return pd.DataFrame(columns=["anno", "provenienza", "Comuni", "mese", "presenze", "Comune"])
+
     for file in os.listdir(data_folder):
         if file.endswith(".txt") or file.endswith(".csv"):
             path = os.path.join(data_folder, file)
-            df = pd.read_csv(path, sep=";")
-            
-            # Pulizia colonne
+            if os.path.getsize(path) == 0:
+                continue
+
+            try:
+                df = pd.read_csv(path, sep=";", encoding="utf-8")
+            except UnicodeDecodeError:
+                df = pd.read_csv(path, sep=";", encoding="latin-1")
+            except pd.errors.EmptyDataError:
+                continue
+
             df = df.rename(columns=lambda x: x.strip())
-            
-            # Trasforma da wide a long (un mese per riga)
+
             df_long = df.melt(
                 id_vars=["anno", "provenienza", "Comuni"],
                 value_vars=[col for col in df.columns if "Presenze" in col],
                 var_name="mese",
                 value_name="presenze"
             )
-            
-            # Normalizza i nomi dei mesi
+
             df_long["mese"] = df_long["mese"].str.replace(" Presenze", "", regex=False)
-            
+            df_long["Comune"] = df_long["Comuni"].str.split(" - ").str[1]
+
             all_dfs.append(df_long)
-    
-    # Unisci tutti gli anni
-    data = pd.concat(all_dfs, ignore_index=True)
-    
-    # Estrai solo il nome del Comune (senza codice numerico davanti)
-    data["Comune"] = data["Comuni"].str.split(" - ").str[1]
-    
-    return data
+
+    if all_dfs:
+        return pd.concat(all_dfs, ignore_index=True)
+    else:
+        return pd.DataFrame(columns=["anno", "provenienza", "Comuni", "mese", "presenze", "Comune"])
