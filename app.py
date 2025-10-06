@@ -87,21 +87,27 @@ else:
 # GRAFICO ANDAMENTO MENSILE
 # ======================
 st.subheader("📈 Andamento mensile")
-fig = px.line(
-    df_filtered,
-    x="mese",
-    y="presenze",
-    color="Comune",
-    line_dash="anno",   # linee diverse per anno
-    markers=True
-)
-fig.update_layout(
-    xaxis=dict(categoryorder="array", categoryarray=[
-        "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
-        "Lug", "Ago", "Set", "Ott", "Nov", "Dic"
-    ])
-)
-st.plotly_chart(fig, use_container_width=True)
+
+if not df_filtered.empty:
+    fig = px.line(
+        df_filtered,
+        x="mese",
+        y="presenze",
+        color="anno",        # colori diversi per anno
+        markers=True,
+        facet_row="Comune"   # un grafico per ogni Comune selezionato
+    )
+    fig.update_layout(
+        xaxis=dict(
+            categoryorder="array",
+            categoryarray=["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
+                           "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+        ),
+        legend_title_text="Anno"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Nessun dato disponibile per i filtri selezionati.")
 
 # ======================
 # GRAFICO CONFRONTO COMUNI (BARRE AFFIANCATE PER ANNO)
