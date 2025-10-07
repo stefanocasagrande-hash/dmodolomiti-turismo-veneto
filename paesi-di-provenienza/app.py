@@ -1,114 +1,122 @@
-import streamlit as st
-import pandas as pd
-import glob
 import os
+import pandas as pd
+import numpy as np
+import streamlit as st
 import altair as alt
 
-# === Configurazione pagina ===
-st.set_page_config(page_title="Presenze turistiche per Paese", layout="wide")
+st.set_page_config(page_title="Presenze Dolomiti Estero", layout="wide")
 
-st.title("📊 Dashboard Presenze Turistiche per Paese di Provenienza")
+st.title("📊 Presenze Turistiche - Dolomiti (Estero)")
+st.markdown("Confronto tra anni, paesi e mesi - dati ufficiali Veneto")
 
-# === Caricamento dinamico file ===
-data_folder = "dati-paesi-di-provenienza"
-files = glob.glob(os.path.join(data_folder, "presenze-dolomiti-estero-*.txt"))
+# --- Percorso dei dati ---
+DATA_DIR = os.path.join(os.path.dirname(__file__), "dati-paesi-di-provenienza")
 
-df_all = []
-for f in files:
-    basename = os.path.basename(f)
-    anno = os.path.splitext(basename)[0].split("-")[-1]  # estrae anno dal nome file
-    
-    df = pd.read_csv(f, sep=";", header=1, engine="python")
-    df.rename(columns={df.columns[0]: "Mese"}, inplace=True)
-    
-    df_long = df.melt(id_vars=["Mese"], var_name="Paese", value_name="Presenze")
-    df_long["Presenze"] = pd.to_numeric(df_long["Presenze"], errors="coerce").fillna(0)
-    df_long["Anno"] = anno
-    df_all.append(df_long)
+# --- Carica tutti i file disponibili ---
+all_data = []
+for file in os.listdir(DATA_DIR):
+    if file.startswith("presenze-dolomiti-estero") and file.endswith(".txt"):
+        try:
+            anno = int(file.split("-")[-1].split(".")[0])
+            path = os.path.join(DATA_DIR, file)
+            df = pd.read_csv(path, sep=";", header=1, engine="python")
+            df = df.rename(columns={df.columns[0]: "Mese"})
+            df["Anno"] = anno
+            all_data.append(df)
+        except Exception as e:
+            st.warning(f"Errore nel caricamento di {file}: {e}")
 
-if df_all:
-    df_all = pd.concat(df_all, ignore_index=True)
-else:
-    st.error("❌ Nessun file trovato nella cartella dati-paesi-di-provenienza")
+# --- Unisci tutti i dati ---
+if not all_data:
+    st.error("❌ Nessun file trovato nella cartella 'dati-paesi-di-provenienza'")
     st.stop()
 
-# === Filtri Sidebar ===
-st.sidebar.header("🎛️ Filtri")
+df = pd.concat(all_data, ignore_index=True)
 
-anni_unici = sorted(df_all["Anno"].unique())
-paesi_unici = sorted(df_all["Paese"].unique())
-mesi_unici = sorted(df_all["Mese"].unique())
+# --- Trasforma i dati in formato lungo ---
+df_long = df.melt(id_vars=["Mese", "Anno"], var_name="Paese", value_name="Presenze")
+df_long["Presenze"] = pd.to_numeric(df_long["Presenze"], errors="coerce")
+df_long = df_long.dropna(subset=["Presenze"])
 
-anni_sel = st.sidebar.multiselect(
-    "📅 Seleziona Anno/i",
-    anni_unici,
-    default=anni_unici,
-)
+# --- Pulisci i mesi (rimuove numeri iniziali tipo '01Gennaio') ---
+df_long["Mese"] = df_long["Mese"].astype(str).str.replace(r"^\d+", "", regex=True)
 
-paesi_sel = st.sidebar.multiselect(
-    "🌍 Seleziona Paese/i",
-    paesi_unici,
-    default=["Germania Paese", "Austria Paese", "Francia Paese"],
-)
+# --- Ordine mesi ---
+mesi_ordine = [
+    "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+]
+df_long["Mese"] = pd.Categorical(df_long["Mese"], categories=mesi_ordine, ordered=True)
 
-mesi_sel = st.sidebar.multiselect(
-    "📆 Seleziona Mese/i",
-    mesi_unici,
-    default=mesi_unici,
-)
+# --- FILTRI ---
+col1, col2, col3 = st.columns(3)
 
-# === Applico i filtri ===
-df_filt = df_all[df_all["Anno"].isin(anni_sel)]
-if paesi_sel:
-    df_filt = df_filt[df_filt["Paese"].isin(paesi_sel)]
-if mesi_sel:
-    df_filt = df_filt[df_filt["Mese"].isin(mesi_sel)]
+with col1:
+    paesi = st.multiselect(
+        "🌍 Seleziona Paese/i:",
+        options=sorted(df_long["Paese"].unique()),
+        default=["Germania"] if "Germania" in df_long["Paese"].unique() else []
+    )
 
-# === Ordine mesi coerente ===
-ordine_mesi = [
-    "01Gennaio", "02Febbraio", "03Marzo", "04Aprile",
-    "05Maggio", "06Giugno", "07Luglio", "08Agosto",
-    "09Settembre", "10Ottobre", "11Novembre", "12Dicembre"
+with col2:
+    anni = st.multiselect(
+        "📅 Seleziona Anno/i:",
+        options=sorted(df_long["Anno"].unique()),
+        default=sorted(df_long["Anno"].unique())
+    )
+
+with col3:
+    mesi = st.multiselect(
+        "🗓️ Seleziona Mese/i:",
+        options=mesi_ordine,
+        default=mesi_ordine
+    )
+
+# --- FILTRA DATI ---
+df_filtered = df_long[
+    (df_long["Paese"].isin(paesi)) &
+    (df_long["Anno"].isin(anni)) &
+    (df_long["Mese"].isin(mesi))
 ]
 
-df_filt["Mese"] = pd.Categorical(df_filt["Mese"], categories=ordine_mesi, ordered=True)
-df_filt = df_filt.sort_values(["Anno", "Paese", "Mese"])
+if df_filtered.empty:
+    st.warning("⚠️ Nessun dato trovato per i filtri selezionati.")
+    st.stop()
 
-# === Colonna combinata Paese + Anno ===
-df_filt["Serie"] = df_filt["Paese"] + " (" + df_filt["Anno"].astype(str) + ")"
-
-# === Grafico con legenda unica ===
+# --- GRAFICO ---
 chart = (
-    alt.Chart(df_filt)
+    alt.Chart(df_filtered)
     .mark_line(point=True)
     .encode(
-        x=alt.X("Mese:N", sort=ordine_mesi, title="Mese"),
-        y=alt.Y("Presenze:Q", title="Presenze"),
-        color=alt.Color("Serie:N", title="Paese / Anno"),
+        x=alt.X("Mese", sort=mesi_ordine, title="Mese"),
+        y=alt.Y("Presenze:Q", title="Numero di presenze"),
+        color=alt.Color("Anno:N", title="Anno", scale=alt.Scale(scheme="tableau10")),
+        strokeDash=alt.StrokeDash("Paese:N", title="Paese"),
         tooltip=["Anno", "Paese", "Mese", "Presenze"]
     )
-    .properties(width=900, height=500, title="Andamento presenze per Paese e Anno")
+    .properties(width=1000, height=500, title="Andamento delle presenze per Paese e Anno")
+    .interactive()
 )
 
 st.altair_chart(chart, use_container_width=True)
 
-# === Tabella di confronto anni ===
-if len(anni_sel) >= 2:
-    pivot = df_filt.pivot_table(
-        index=["Mese", "Paese"],
-        columns="Anno",
-        values="Presenze",
-        aggfunc="sum"
+# --- TABELLA CON DIFFERENZE ---
+if len(anni) >= 2:
+    pivot = df_filtered.pivot_table(
+        index=["Mese", "Paese"], columns="Anno", values="Presenze", aggfunc="sum"
     ).reset_index()
 
-    anni_sorted = sorted(anni_sel)
-    anno1, anno2 = anni_sorted[0], anni_sorted[-1]
-    if anno1 in pivot.columns and anno2 in pivot.columns:
-        pivot["Diff assoluta"] = pivot[anno2] - pivot[anno1]
-        pivot["Diff %"] = ((pivot[anno2] - pivot[anno1]) / pivot[anno1].replace(0, pd.NA)) * 100
-
-    st.subheader(f"📋 Confronto {anno1} vs {anno2}")
-    st.dataframe(pivot.style.format({"Diff %": "{:.2f}%"}))
+    # Calcolo differenze tra due anni selezionati
+    if len(anni) == 2:
+        anno1, anno2 = sorted(anni)
+        pivot["Diff Assoluta"] = pivot[anno2] - pivot[anno1]
+        pivot["Diff %"] = ((pivot["Diff Assoluta"] / pivot[anno1]) * 100).round(2)
+        st.markdown("### 📈 Differenze tra anni selezionati")
+        st.dataframe(pivot.fillna(0))
+    else:
+        st.info("Seleziona esattamente due anni per visualizzare le differenze.")
 else:
-    st.subheader("📋 Dati filtrati")
-    st.dataframe(df_filt)
+    st.info("Seleziona almeno due anni per visualizzare il confronto.")
+
+st.markdown("---")
+st.caption("Dati caricati automaticamente dai file .txt nella cartella 'dati-paesi-di-provenienza'.")
