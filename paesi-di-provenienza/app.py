@@ -1,18 +1,22 @@
 import streamlit as st
 import altair as alt
 import pandas as pd
+import os
 from etl import load_data
 
-# Impostazioni pagina Streamlit
+# Impostazioni Streamlit
 st.set_page_config(page_title="Presenze Turistiche Estero", layout="wide")
 
-# Titolo e descrizione
 st.title("📊 Presenze Turistiche - Dolomiti (Estero)")
-st.markdown("Analisi e confronto delle presenze turistiche per Paese di provenienza.")
+st.markdown("Analisi e confronto delle presenze turistiche per Paese di provenienza e anno.")
 
-# --- Carica dati tramite etl.py ---
+# Percorso dinamico della cartella dati
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "dati-paesi-di-provenienza")
+
+# --- Caricamento dati ---
 try:
-    df_long = load_data()
+    df_long = load_data(data_dir=DATA_DIR, prefix="turismo-per-mese-comune", suffix="-presenze.txt")
 except FileNotFoundError as e:
     st.error(f"❌ Errore nel caricamento dati: {e}")
     st.stop()
@@ -78,13 +82,12 @@ chart = (
 
 st.altair_chart(chart, use_container_width=True)
 
-# --- Tabella con differenze ---
+# --- Tabella differenze ---
 if len(anni) >= 2:
     pivot = df_filtered.pivot_table(
         index=["Mese", "Paese"], columns="Anno", values="Presenze", aggfunc="sum"
     ).reset_index()
 
-    # Seleziona solo due anni per confronto diretto
     if len(anni) == 2:
         anno1, anno2 = sorted(anni)
         pivot["Diff Assoluta"] = pivot[anno2] - pivot[anno1]
