@@ -1,44 +1,52 @@
-import pandas as pd
 import os
-import re
+import pandas as pd
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "dati-paesi-di-provenienza")
+def load_data(data_dir="dati-paesi-di-provenienza"):
+    """
+    Carica e unisce tutti i file di presenze turistiche estero per anno.
+    Restituisce un DataFrame in formato lungo con colonne:
+    ['Anno', 'Mese', 'Paese', 'Presenze']
+    """
 
-def load_data():
     all_data = []
 
-    for file_name in os.listdir(DATA_DIR):
-        if file_name.endswith(".txt"):
-            file_path = os.path.join(DATA_DIR, file_name)
+    for file in os.listdir(data_dir):
+        if file.startswith("presenze-dolomiti-estero") and file.endswith(".txt"):
+            try:
+                anno = int(file.split("-")[-1].split(".")[0])
+                path = os.path.join(data_dir, file)
 
-            # estraggo l'anno dal nome file (cerca 4 cifre)
-            match = re.search(r"(\d{4})", file_name)
-            anno = int(match.group(1)) if match else None
+                # Leggi il file (header sulla riga 2 → header=1)
+                df = pd.read_csv(path, sep=";", header=1, engine="python")
 
-            # leggo il file: la riga 2 contiene i Paesi
-            df = pd.read_csv(file_path, sep=";", header=1)
+                # Rinomina la prima colonna
+                df = df.rename(columns={df.columns[0]: "Mese"})
+                df["Anno"] = anno
+                all_data.append(df)
+            except Exception as e:
+                print(f"Errore nel caricamento di {file}: {e}")
 
-            # rinomino la prima colonna come "Mese"
-            df = df.rename(columns={df.columns[0]: "Mese"})
+    if not all_data:
+        raise FileNotFoundError("Nessun file trovato nella cartella dati-paesi-di-provenienza")
 
-            # trasformo in formato lungo
-            df_long = df.melt(
-                id_vars=["Mese"],
-                var_name="Paese",
-                value_name="Presenze"
-            )
+    # Unisci tutti i file caricati
+    df = pd.concat(all_data, ignore_index=True)
 
-            # aggiungo colonna anno
-            df_long["Anno"] = anno
+    # Trasforma i dati in formato lungo
+    df_long = df.melt(id_vars=["Mese", "Anno"], var_name="Paese", value_name="Presenze")
 
-            all_data.append(df_long)
+    # Pulisci e converti i valori
+    df_long["Presenze"] = pd.to_numeric(df_long["Presenze"], errors="coerce")
+    df_long = df_long.dropna(subset=["Presenze"])
 
-    # unisco tutti i file
-    if all_data:
-        return pd.concat(all_data, ignore_index=True)
-    else:
-        return pd.DataFrame(columns=["Mese", "Paese", "Presenze", "Anno"])
+    # Rimuovi numeri iniziali dai mesi (es. '01Gennaio' → 'Gennaio')
+    df_long["Mese"] = df_long["Mese"].astype(str).str.replace(r"^\d+", "", regex=True)
 
+    # Ordina i mesi
+    mesi_ordine = [
+        "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+        "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
+    ]
+    df_long["Mese"] = pd.Categorical(df_long["Mese"], categories=mesi_ordine, ordered=True)
 
-if __name__ == "__main__":
-    print(load_data().head(20))
+    return df_long
