@@ -16,7 +16,7 @@ DATA_DIR = os.path.join(BASE_DIR, "dati-paesi-di-provenienza")
 
 # --- Caricamento dati ---
 try:
-    df_long = load_data(data_dir=DATA_DIR, prefix="turismo-per-mese-comune", suffix="-presenze.txt")
+    df_long = load_data(data_dir=DATA_DIR, prefix="presenze-dolomiti-estero")
 except FileNotFoundError as e:
     st.error(f"❌ Errore nel caricamento dati: {e}")
     st.stop()
