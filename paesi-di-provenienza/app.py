@@ -26,7 +26,7 @@ st.dataframe(df_long.head(20))
 st.write("Colonne:", df_long.columns.tolist())
 st.write("Paesi unici:", df_long["Paese"].unique()[:10])
 st.write("Anni disponibili:", df_long["Anno"].unique())
-st.write("Mesi unici:", df_long["Mese"].unique()
+st.write("Mesi unici:", df_long["Mese"].unique())
 
 # --- Filtri ---
 col1, col2, col3 = st.columns(3)
