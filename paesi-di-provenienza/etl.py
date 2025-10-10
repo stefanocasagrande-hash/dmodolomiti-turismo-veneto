@@ -39,6 +39,8 @@ def load_data(data_dir="dati-paesi-di-provenienza", prefix="presenze-dolomiti-es
 
     # Trasforma in formato lungo
     df_long = df.melt(id_vars=["Mese", "Anno"], var_name="Paese", value_name="Presenze")
+    # Pulisce il nome del Paese rimuovendo " Paese" o spazi extra
+df_long["Paese"] = df_long["Paese"].astype(str).str.replace(" Paese", "", regex=False).str.strip()
 
     # Pulisci e converti
     df_long["Presenze"] = pd.to_numeric(df_long["Presenze"], errors="coerce").fillna(0).astype(int)
