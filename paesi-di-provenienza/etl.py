@@ -32,7 +32,9 @@ def load_data(data_dir="dati-paesi-di-provenienza", prefix="presenze-dolomiti-es
             df = pd.read_csv(file, sep=";", header=1, engine="python")
 
             # Rinomina la prima colonna in "Mese"
-            df.rename(columns={df.columns[0]: "Mese"}, inplace=True)
+            # Trova automaticamente la colonna che contiene la parola "MESE"
+            col_mese = next((c for c in df.columns if "MESE" in c.upper()), df.columns[0])
+            df.rename(columns={col_mese: "Mese"}, inplace=True)
             df["Anno"] = year
 
             df_list.append(df)
