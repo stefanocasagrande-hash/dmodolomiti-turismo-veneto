@@ -17,16 +17,15 @@ DATA_DIR = os.path.join(BASE_DIR, "dati-paesi-di-provenienza")
 # --- Caricamento dati ---
 try:
     df_long = load_data(data_dir=DATA_DIR, prefix="presenze-dolomiti-estero")
+
     st.subheader("🔍 Dati caricati (anteprima)")
-st.dataframe(df_long.head(20))
+    st.dataframe(df_long.head(20))
+    st.write("Colonne:", df_long.columns.tolist())
+    st.write("Anni disponibili:", df_long["Anno"].unique().tolist())
+    st.write("Paesi unici:", df_long["Paese"].unique()[:15])
+    st.write("Mesi unici:", df_long["Mese"].unique().tolist())
 
-st.write("Colonne:", df_long.columns.tolist())
-st.write("Anni disponibili:", df_long["Anno"].unique().tolist())
-st.write("Paesi unici:", df_long["Paese"].unique()[:15])
-st.write("Mesi unici:", df_long["Mese"].unique().tolist())
-
-    st.write("✅ Dati caricati:", df_long.head(), df_long.shape)
-except FileNotFoundError as e:
+except Exception as e:
     st.error(f"❌ Errore nel caricamento dati: {e}")
     st.stop()
 
