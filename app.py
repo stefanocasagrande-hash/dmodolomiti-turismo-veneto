@@ -149,3 +149,9 @@ if not df_filtered.empty:
     st.dataframe(kpi_table.rename(columns={"anno": "Anno", "Comune": "Comune", "presenze": "Totale presenze"}))
 else:
     st.info("Nessun dato disponibile per i filtri selezionati.")
+
+# ---------------------------------------------------------
+# FOOTER
+# ---------------------------------------------------------
+st.markdown("---")
+st.caption("Elaborazione dati a cura di **D.M.O. Dolomiti Bellunesi – Osservatorio Gemellato Turistico Regionale del Veneto**.")
