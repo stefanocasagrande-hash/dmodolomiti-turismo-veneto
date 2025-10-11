@@ -1,114 +1,131 @@
 import streamlit as st
-import altair as alt
 import pandas as pd
-import os
+import altair as alt
 from etl import load_data
 
-# Impostazioni Streamlit
-st.set_page_config(page_title="Presenze Turistiche Estero", layout="wide")
+# ---------------------------------------------------------
+# CONFIGURAZIONE BASE
+# ---------------------------------------------------------
+st.set_page_config(
+    page_title="Presenze Turistiche Estero",
+    layout="wide",
+    page_icon="🌍",
+)
 
-st.title("📊 Presenze Turistiche - Dolomiti (Estero)")
-st.markdown("Analisi e confronto delle presenze turistiche per Paese di provenienza e anno.")
+st.title("🌍 Presenze Turistiche Estero – Analisi per Paese di Provenienza")
 
-# Percorso dinamico della cartella dati
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "dati-paesi-di-provenienza")
+# ---------------------------------------------------------
+# CARICAMENTO DATI
+# ---------------------------------------------------------
+DATA_DIR = "dati-paesi-di-provenienza"
 
-# --- Caricamento dati ---
 try:
     df_long = load_data(data_dir=DATA_DIR, prefix="presenze-dolomiti-estero")
-
-    st.subheader("🔍 Dati caricati (anteprima)")
-    st.dataframe(df_long.head(20))
-    st.write("Colonne:", df_long.columns.tolist())
-    st.write("Anni disponibili:", df_long["Anno"].unique().tolist())
-    st.write("Paesi unici:", df_long["Paese"].unique()[:15])
-    st.write("Mesi unici:", df_long["Mese"].unique().tolist())
-
+    st.success("✅ Dati caricati correttamente.")
 except Exception as e:
     st.error(f"❌ Errore nel caricamento dati: {e}")
     st.stop()
 
-# --- Filtri ---
+# ---------------------------------------------------------
+# FILTRI
+# ---------------------------------------------------------
 col1, col2, col3 = st.columns(3)
 
 with col1:
     paesi = st.multiselect(
-        "🌍 Seleziona Paese/i:",
-        options=sorted(df_long["Paese"].unique()),
-        default=["Germania"] if "Germania" in df_long["Paese"].unique() else []
+        "🌐 Seleziona Paese/i:",
+        sorted(df_long["Paese"].unique()),
+        default=["Germania"] if "Germania" in df_long["Paese"].values else None
     )
 
 with col2:
     anni = st.multiselect(
         "📅 Seleziona Anno/i:",
-        options=sorted(df_long["Anno"].unique()),
-        default=sorted(df_long["Anno"].unique())
+        sorted(df_long["Anno"].unique()),
+        default=sorted(df_long["Anno"].unique())[-2:] if len(df_long["Anno"].unique()) >= 2 else sorted(df_long["Anno"].unique())
     )
-
-mesi_ordine = [
-    "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
-    "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"
-]
 
 with col3:
     mesi = st.multiselect(
         "🗓️ Seleziona Mese/i:",
-        options=mesi_ordine,
-        default=mesi_ordine
+        [m for m in df_long["Mese"].cat.categories if m in df_long["Mese"].unique()],
+        default=[m for m in df_long["Mese"].cat.categories if m in df_long["Mese"].unique()]
     )
 
-# --- Applica filtri ---
+# ---------------------------------------------------------
+# FILTRAGGIO DEI DATI
+# ---------------------------------------------------------
 df_filtered = df_long[
-    (df_long["Paese"].isin(paesi)) &
-    (df_long["Anno"].isin(anni)) &
-    (df_long["Mese"].isin(mesi))
+    df_long["Paese"].isin(paesi)
+    & df_long["Anno"].isin(anni)
+    & df_long["Mese"].isin(mesi)
 ]
 
 if df_filtered.empty:
     st.warning("⚠️ Nessun dato trovato per i filtri selezionati.")
     st.stop()
 
-# --- Grafico ---
+# ---------------------------------------------------------
+# GRAFICO
+# ---------------------------------------------------------
+st.subheader("📈 Andamento mensile delle presenze")
+
 chart = (
     alt.Chart(df_filtered)
     .mark_line(point=True)
     .encode(
-        x=alt.X("Mese:N", sort=mesi_ordine, title="Mese"),
-        y=alt.Y("Presenze:Q", title="Numero di presenze"),
-        color=alt.Color("Anno:N", title="Anno", scale=alt.Scale(scheme="tableau10")),
-        strokeDash=alt.StrokeDash("Paese:N", title="Paese"),
-        tooltip=["Anno", "Paese", "Mese", "Presenze"]
+        x=alt.X("Mese:N", sort=df_long["Mese"].cat.categories),
+        y=alt.Y("Presenze:Q", title="Numero presenze"),
+        color=alt.Color("Anno:N", legend=alt.Legend(title="Anno")),
+        strokeDash=alt.StrokeDash("Paese:N", legend=alt.Legend(title="Paese")),
+        tooltip=["Anno", "Mese", "Paese", "Presenze"]
     )
-    .properties(
-        width=1000,
-        height=500,
-        title="Andamento delle presenze per Paese e Anno"
-    )
-    .interactive()
+    .properties(height=450)
 )
 
 st.altair_chart(chart, use_container_width=True)
 
-# --- Tabella differenze ---
+# ---------------------------------------------------------
+# TABELLA COMPARATIVA TRA ANNI
+# ---------------------------------------------------------
 if len(anni) >= 2:
+    st.subheader("📊 Differenze tra anni selezionati")
+
     pivot = df_filtered.pivot_table(
-        index=["Mese", "Paese"], columns="Anno", values="Presenze", aggfunc="sum"
+        index=["Mese", "Paese"],
+        columns="Anno",
+        values="Presenze",
+        aggfunc="sum"
     ).reset_index()
 
-    if len(anni) == 2:
-        anno1, anno2 = sorted(anni)
-        pivot["Diff Assoluta"] = pivot[anno2] - pivot[anno1]
-        pivot["Diff %"] = ((pivot["Diff Assoluta"] / pivot[anno1]) * 100).round(2)
+    # Calcolo differenze tra anni
+    try:
+        if len(anni) == 2:
+            a1, a2 = sorted(anni)
+            pivot["Differenza assoluta"] = pivot[a2] - pivot[a1]
+            pivot["Differenza %"] = ((pivot[a2] - pivot[a1]) / pivot[a1].replace(0, pd.NA)) * 100
+        else:
+            anni_sorted = sorted(anni)
+            for i in range(1, len(anni_sorted)):
+                a1, a2 = anni_sorted[i - 1], anni_sorted[i]
+                pivot[f"Differenza {a1}-{a2}"] = pivot[a2] - pivot[a1]
+                pivot[f"Differenza % {a1}-{a2}"] = ((pivot[a2] - pivot[a1]) / pivot[a1].replace(0, pd.NA)) * 100
+    except Exception as e:
+        st.error(f"Errore nel calcolo delle differenze: {e}")
 
-        st.markdown("### 📈 Differenze tra anni selezionati")
-        st.dataframe(pivot.fillna(0))
-    else:
-        st.info("Seleziona esattamente due anni per visualizzare le differenze.")
+    # 🔧 Correzione fillna per colonne numeriche
+    pivot = pivot.copy()
+    for col in pivot.select_dtypes(include="number").columns:
+        pivot[col] = pivot[col].fillna(0)
+
+    # Mostra la tabella finale
+    st.dataframe(pivot)
+
 else:
-    st.info("Seleziona almeno due anni per confrontare i dati.")
+    st.info("Seleziona almeno due anni per visualizzare le differenze.")
 
-# --- Footer ---
+# ---------------------------------------------------------
+# FOOTER
+# ---------------------------------------------------------
 st.markdown("---")
-st.caption("Dati caricati automaticamente dalla cartella `dati-paesi-di-provenienza`. \
-Grafico generato con Altair, dashboard realizzata con Streamlit.")
+st.caption("Elaborazione dati a cura di **Dolomiti Turismo – Osservatorio Turistico Regionale del Veneto**.")
