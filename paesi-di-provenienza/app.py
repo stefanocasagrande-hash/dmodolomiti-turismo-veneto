@@ -136,4 +136,4 @@ else:
 # FOOTER
 # ---------------------------------------------------------
 st.markdown("---")
-st.caption("Elaborazione dati a cura di **Dolomiti Turismo – Osservatorio Turistico Regionale del Veneto**.")
+st.caption("Elaborazione dati a cura di **D.M.O. Dolomiti Bellunesi – Osservatorio Gemellato Turistico Regionale del Veneto**.")
