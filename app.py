@@ -2,6 +2,7 @@ import streamlit as st
 import plotly.express as px
 import pandas as pd
 from etl import load_data
+from pattern_analysis import analisi_stagionale, seasonal_subseries_plot, clustering_comuni
 
 # ======================
 # AUTENTICAZIONE BASE
@@ -146,6 +147,20 @@ if not df_filtered.empty:
     st.dataframe(kpi_table.rename(columns={"anno": "Anno", "Comune": "Comune", "presenze": "Totale presenze"}))
 else:
     st.info("Nessun dato disponibile per i filtri selezionati.")
+
+st.header("🔍 Analisi dei pattern turistici")
+
+comune_sel = st.selectbox("Seleziona un Comune", sorted(data["Comune"].unique()))
+
+st.subheader("📈 Analisi stagionale (decomposizione)")
+analisi_stagionale(data, comune_sel)
+
+st.subheader("📊 Distribuzione stagionale dei mesi")
+seasonal_subseries_plot(data, comune_sel)
+
+st.subheader("🧩 Clustering Comuni per pattern stagionale")
+n_clusters = st.slider("Numero di cluster", 2, 6, 4)
+clustering_comuni(data, n_clusters=n_clusters)
 
 # ---------------------------------------------------------
 # FOOTER
