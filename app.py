@@ -170,15 +170,43 @@ with st.expander("ℹ️ Cosa mostra questa sezione", expanded=True):
       Aiuta a confrontare territori con comportamenti turistici affini.
     """)
 
-comune_sel = st.selectbox("Seleziona un Comune", sorted(data["Comune"].unique()))
+# Selezione Comune
+comune_sel = st.selectbox("🏙️ Seleziona un Comune", sorted(data["Comune"].unique()))
 
+# --- Analisi stagionale ---
 st.subheader("📈 Analisi stagionale (decomposizione)")
+
+with st.expander("Legenda grafico"):
+    st.markdown("""
+    - **Linea blu** → Andamento reale delle presenze.  
+    - **Linea arancione (trend)** → andamento di lungo periodo.  
+    - **Linea verde (stagionalità)** → variazione ciclica dei mesi.  
+    - **Residuo** → differenze casuali non spiegate dagli altri fattori.
+    """)
 analisi_stagionale(data, comune_sel)
 
+# --- Distribuzione stagionale ---
 st.subheader("📊 Distribuzione stagionale dei mesi")
+
+with st.expander("Legenda grafico"):
+    st.markdown("""
+    - Ogni **box colorato** rappresenta la distribuzione delle presenze in un mese specifico per tutti gli anni.  
+    - Il **punto nero** indica un singolo anno.  
+    - Mesi con box “stretti” → andamento stabile nel tempo.  
+    - Mesi con box “larghi” → maggiore variabilità anno per anno.
+    """)
 seasonal_subseries_plot(data, comune_sel)
 
+# --- Clustering Comuni ---
 st.subheader("🧩 Clustering Comuni per pattern stagionale")
+
+with st.expander("Legenda grafico"):
+    st.markdown("""
+    - Ogni **cluster** rappresenta un gruppo di Comuni con andamento stagionale simile.  
+    - Le linee colorate mostrano il **profilo medio mensile** di ciascun cluster.  
+    - Cluster con picchi in estate → Comuni turistici estivi.  
+    - Cluster con picchi in inverno → Comuni turistici invernali.
+    """)
 n_clusters = st.slider("Numero di cluster", 2, 6, 4)
 clustering_comuni(data, n_clusters=n_clusters)
 
