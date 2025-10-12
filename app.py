@@ -116,13 +116,14 @@ st.subheader("🏙️ Confronto tra Comuni")
 
 if not df_filtered.empty:
     fig_bar = px.bar(
-        df_filtered,
-        x="mese",
-        y="presenze",
-        color="anno",          # colore = anno
-        barmode="group",       # <-- barre affiancate, non impilate
-        facet_row="Comune",    # un grafico per ogni Comune
-    )
+    df_filtered,
+    x="mese",
+    y="presenze",
+    color="anno",
+    barmode="group",  # Barre affiancate
+    facet_row=None,   # Tutti i comuni nello stesso grafico
+    pattern_shape="Comune"  # Pattern diverso per distinguere i Comuni
+)
 
     fig_bar.update_layout(
         xaxis=dict(
