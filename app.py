@@ -148,7 +148,27 @@ if not df_filtered.empty:
 else:
     st.info("Nessun dato disponibile per i filtri selezionati.")
 
+# ======================
+# 🔍 ANALISI DEI PATTERN TURISTICI
+# ======================
 st.header("🔍 Analisi dei pattern turistici")
+
+with st.expander("ℹ️ Cosa mostra questa sezione", expanded=True):
+    st.markdown("""
+    Questa sezione analizza i **pattern ricorrenti** nei dati turistici per individuare andamenti comuni o stagionali nei diversi Comuni del Veneto.
+
+    **Contenuti:**
+    - 📈 **Analisi stagionale (decomposizione)**  
+      Scompone le presenze nel tempo in tre componenti: *trend* (crescita o calo di lungo periodo), *stagionalità* (andamento mensile tipico) e *residuo* (variazioni casuali).
+
+    - 📊 **Distribuzione stagionale dei mesi**  
+      Mostra, per ogni mese, la dispersione delle presenze nei diversi anni.  
+      È utile per vedere se alcuni mesi (es. Luglio, Agosto) hanno comportamenti ricorrenti o molto variabili nel tempo.
+
+    - 🧩 **Clustering Comuni per pattern stagionale**  
+      Raggruppa i Comuni che hanno un andamento mensile simile (es. Comuni “estivi”, “invernali”, o “tutto l’anno”).  
+      Aiuta a confrontare territori con comportamenti turistici affini.
+    """)
 
 comune_sel = st.selectbox("Seleziona un Comune", sorted(data["Comune"].unique()))
 
