@@ -110,31 +110,26 @@ else:
     st.info("Nessun dato disponibile per i filtri selezionati.")
 
 # ======================
-# GRAFICO CONFRONTO TRA ANNI (BARRE AFFIANCATE)
+# GRAFICO CONFRONTO TRA MESI NEI DIVERSI ANNI
 # ======================
-st.subheader("📆 Confronto tra Anni")
+st.subheader("📆 Confronto tra mesi nei diversi anni")
 
 if not df_filtered.empty:
     fig_bar = px.bar(
         df_filtered,
-        x="mese",
-        y="presenze",
-        color="anno",         # colore per anno
-        barmode="group",      # barre affiancate
-        facet_row="Comune"    # un grafico per ogni Comune selezionato
+        x="anno",             # Asse X = anni
+        y="presenze",         # Asse Y = presenze
+        color="mese",         # Colore = mese
+        barmode="group",      # Barre affiancate per mese
+        facet_row="Comune",   # Un grafico per ogni Comune selezionato
     )
 
     fig_bar.update_layout(
-        xaxis=dict(
-            categoryorder="array",
-            categoryarray=[
-                "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
-                "Lug", "Ago", "Set", "Ott", "Nov", "Dic"
-            ]
-        ),
-        legend_title_text="Anno",
-        bargap=0.15,          # spazio tra i gruppi
-        bargroupgap=0.05      # spazio tra le barre degli anni
+        legend_title_text="Mese",
+        bargap=0.2,
+        bargroupgap=0.05,
+        xaxis_title="Anno",
+        yaxis_title="Presenze"
     )
 
     st.plotly_chart(fig_bar, use_container_width=True)
