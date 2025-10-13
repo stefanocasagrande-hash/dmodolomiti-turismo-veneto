@@ -57,13 +57,14 @@ def load_data(data_folder="dati-mensili-per-comune"):
 # =========================
 def load_provincia_belluno(data_folder="dati-mensili-per-comune/dati-provincia-annuali"):
     """
-    Carica tutti i file degli arrivi e presenze totali per la provincia di Belluno
+    Carica i file degli arrivi e presenze totali per la provincia di Belluno
     presenti nella cartella specificata (uno per anno).
-    Ritorna un DataFrame con colonne: mese, arrivi, presenze, anno
+    Adatta la struttura del file ufficiale (Arrivi/Presenze italiani e stranieri).
     """
+    import os
     frames = []
-    ordine_mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
-                   "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+    ordine_mesi = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
+                   "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
 
     if not os.path.exists(data_folder):
         print(f"⚠️ Cartella non trovata: {data_folder}")
@@ -77,19 +78,39 @@ def load_provincia_belluno(data_folder="dati-mensili-per-comune/dati-provincia-a
             except UnicodeDecodeError:
                 df = pd.read_csv(path, sep=";", encoding="latin1")
 
-            # Pulizia colonne
+            # Rinomina colonne
             df.columns = [c.strip().lower() for c in df.columns]
+            rename_map = {
+                "mese": "mese",
+                "totale arrivi": "arrivi",
+                "totale presenze": "presenze"
+            }
+            df.rename(columns=rename_map, inplace=True)
 
-            if "mese" not in df.columns or "presenze" not in df.columns or "arrivi" not in df.columns:
-                continue
+            # Elimina righe di totale
+            df = df[~df["mese"].str.upper().str.contains("TOTALE")]
 
-            # Estrai l’anno dal nome file
-            year = "".join([c for c in file if c.isdigit()])
-            df["anno"] = int(year) if year else None
+            # Estrai anno dal file o dalla colonna 'anno'
+            if "anno" in df.columns:
+                df["anno"] = df["anno"].astype(str).str.extract(r"(\d{4})").astype(int)
+            else:
+                year = "".join([c for c in file if c.isdigit()])
+                df["anno"] = int(year) if year else None
 
-            df["mese"] = pd.Categorical(df["mese"], categories=ordine_mesi, ordered=True)
-            df = df.sort_values("mese")
+            # Normalizza mese
+            df["mese"] = df["mese"].str.strip().str.capitalize()
+            df["mese"] = df["mese"].replace({
+                "Gennaio": "Gen", "Febbraio": "Feb", "Marzo": "Mar", "Aprile": "Apr",
+                "Maggio": "Mag", "Giugno": "Giu", "Luglio": "Lug", "Agosto": "Ago",
+                "Settembre": "Set", "Ottobre": "Ott", "Novembre": "Nov", "Dicembre": "Dic"
+            })
+            df["mese"] = pd.Categorical(df["mese"],
+                                        categories=["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
+                                                    "Lug", "Ago", "Set", "Ott", "Nov", "Dic"],
+                                        ordered=True)
 
+            # Mantieni solo le colonne utili
+            df = df[["mese", "anno", "arrivi", "presenze"]]
             frames.append(df)
 
     if not frames:
@@ -98,3 +119,4 @@ def load_provincia_belluno(data_folder="dati-mensili-per-comune/dati-provincia-a
     df_belluno = pd.concat(frames, ignore_index=True)
     df_belluno = df_belluno.sort_values(["anno", "mese"])
     return df_belluno
+
