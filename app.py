@@ -138,6 +138,78 @@ else:
     st.info("Nessun dato disponibile per i filtri selezionati.")
 
 # ======================
+# 🏔️ ARRIVI E PRESENZE PROVINCIA DI BELLUNO
+# ======================
+st.header("🏔️ Arrivi e Presenze totali - Provincia di Belluno")
+
+from etl import load_provincia_belluno
+
+df_belluno = load_provincia_belluno("dati-mensili-per-comune/dati-provincia-annuali")
+
+if not df_belluno.empty:
+    anni_disponibili = sorted(df_belluno["anno"].dropna().unique())
+    anno_sel = st.selectbox("Seleziona anno", anni_disponibili, index=len(anni_disponibili)-1)
+    df_anno = df_belluno[df_belluno["anno"] == anno_sel]
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Totale Arrivi", f"{df_anno['arrivi'].sum():,}".replace(",", "."))
+    with col2:
+        st.metric("Totale Presenze", f"{df_anno['presenze'].sum():,}".replace(",", "."))
+
+    st.subheader(f"📊 Andamento mensile {anno_sel}")
+
+    import plotly.express as px
+    fig_belluno = px.bar(
+        df_anno,
+        x="mese",
+        y=["arrivi", "presenze"],
+        barmode="group",
+        title=f"Andamento mensile provincia di Belluno - {anno_sel}",
+        labels={"value": "Totale", "variable": "Indicatore"},
+        color_discrete_sequence=["#1f77b4", "#ff7f0e"]
+    )
+    fig_belluno.update_layout(
+        xaxis_title="Mese",
+        yaxis_title="Numero",
+        legend_title_text=""
+    )
+
+    st.plotly_chart(fig_belluno, use_container_width=True)
+
+    st.subheader("📋 Tabella dati mensili")
+    st.dataframe(df_anno)
+
+    # Pulsante per scaricare il CSV annuale
+    csv_prov = df_anno.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label=f"⬇️ Scarica dati provincia Belluno {anno_sel} (CSV)",
+        data=csv_prov,
+        file_name=f"provincia_belluno_{anno_sel}.csv",
+        mime="text/csv"
+    )
+
+    # Confronto anni (se ce ne sono più di uno)
+    if len(anni_disponibili) > 1:
+        st.subheader("📈 Confronto Arrivi e Presenze tra anni")
+
+        fig_comp = px.line(
+            df_belluno,
+            x="mese",
+            y="presenze",
+            color="anno",
+            markers=True,
+            title="Confronto presenze mensili - Province di Belluno",
+            category_orders={"mese": ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
+                                      "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]}
+        )
+        fig_comp.update_layout(yaxis_title="Presenze", xaxis_title="Mese")
+        st.plotly_chart(fig_comp, use_container_width=True)
+
+else:
+    st.warning("⚠️ Nessun dato disponibile per la provincia di Belluno.")
+
+# ======================
 # KPI
 # ======================
 st.subheader("📌 Indicatori")
