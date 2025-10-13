@@ -144,7 +144,7 @@ st.header("🏔️ Arrivi e Presenze totali - Provincia di Belluno")
 
 from etl import load_provincia_belluno
 
-df_belluno = load_provincia_belluno("dati-provincia-annuali")
+df_belluno = load_provincia_belluno("dati-mensili-per-comune/dati-provincia-annuali")
 
 if not df_belluno.empty:
     anni_disponibili = sorted(df_belluno["anno"].dropna().unique())
