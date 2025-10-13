@@ -175,7 +175,6 @@ comune_sel = st.selectbox("🏙️ Seleziona un Comune", sorted(data["Comune"].u
 
 # --- Analisi stagionale ---
 st.subheader("📈 Analisi stagionale (decomposizione)")
-
 with st.expander("Legenda grafico"):
     st.markdown("""
     - **Linea blu** → Andamento reale delle presenze.  
@@ -183,11 +182,28 @@ with st.expander("Legenda grafico"):
     - **Linea verde (stagionalità)** → variazione ciclica dei mesi.  
     - **Residuo** → differenze casuali non spiegate dagli altri fattori.
     """)
+
+# Salva dati usati per la decomposizione
+ordine_mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
+               "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+df_comune = data[data["Comune"] == comune_sel].groupby(["anno", "mese"])["presenze"].sum().reset_index()
+df_comune["mese_num"] = df_comune["mese"].apply(lambda x: ordine_mesi.index(x) + 1)
+df_comune["data"] = pd.to_datetime(df_comune["anno"].astype(str) + "-" + df_comune["mese_num"].astype(str) + "-01")
+df_comune = df_comune.sort_values("data")[["data", "presenze"]]
+
 analisi_stagionale(data, comune_sel)
+
+# Pulsante download analisi stagionale
+csv_comune = df_comune.to_csv(index=False).encode("utf-8")
+st.download_button(
+    label="⬇️ Scarica dati analisi stagionale",
+    data=csv_comune,
+    file_name=f"analisi_stagionale_{comune_sel}.csv",
+    mime="text/csv"
+)
 
 # --- Distribuzione stagionale ---
 st.subheader("📊 Distribuzione stagionale dei mesi")
-
 with st.expander("Legenda grafico"):
     st.markdown("""
     - Ogni **box colorato** rappresenta la distribuzione delle presenze in un mese specifico per tutti gli anni.  
@@ -199,7 +215,6 @@ seasonal_subseries_plot(data, comune_sel)
 
 # --- Clustering Comuni ---
 st.subheader("🧩 Clustering Comuni per pattern stagionale")
-
 with st.expander("Legenda grafico"):
     st.markdown("""
     - Ogni **cluster** rappresenta un gruppo di Comuni con andamento stagionale simile.  
@@ -207,8 +222,30 @@ with st.expander("Legenda grafico"):
     - Cluster con picchi in estate → Comuni turistici estivi.  
     - Cluster con picchi in inverno → Comuni turistici invernali.
     """)
+
 n_clusters = st.slider("Numero di cluster", 2, 6, 4)
+
+# Esegui clustering e prepara dati scaricabili
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+
+pivot = data.pivot_table(index="Comune", columns="mese", values="presenze", aggfunc="mean").fillna(0)
+pivot = pivot[ordine_mesi]
+scaler = StandardScaler()
+X = scaler.fit_transform(pivot)
+model = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+pivot["Cluster"] = model.fit_predict(X)
+
 clustering_comuni(data, n_clusters=n_clusters)
+
+# Pulsante download risultati cluster
+csv_clusters = pivot.reset_index()[["Comune", "Cluster"]].to_csv(index=False).encode("utf-8")
+st.download_button(
+    label="⬇️ Scarica risultati clustering (CSV)",
+    data=csv_clusters,
+    file_name="cluster_comuni.csv",
+    mime="text/csv"
+)
 
 # ---------------------------------------------------------
 # FOOTER
