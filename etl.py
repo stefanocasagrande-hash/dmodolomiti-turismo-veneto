@@ -67,7 +67,7 @@ def load_data(data_folder="dati-mensili-per-comune"):
 # =========================
 # 2️⃣ CARICAMENTO DATI PROVINCIALI (BELLUNO)
 # =========================
-def load_provincia_belluno(data_folder="dati-mensili-per-comune/dati-provincia-annuali"):
+def load_provincia_belluno(data_folder="dati-provincia-annuali"):
     """
     Carica i file degli arrivi e presenze totali per la provincia di Belluno.
     Gestisce la struttura dei file con colonne 'Totale arrivi' e 'Totale presenze'.
