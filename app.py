@@ -1,5 +1,4 @@
 import streamlit as st
-import os
 import pandas as pd
 import plotly.express as px
 from etl import load_data, load_provincia_belluno
