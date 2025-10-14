@@ -2,16 +2,10 @@ import os
 import glob
 import pandas as pd
 
-def find_files_recursive(pattern):
-    """Restituisce la lista di file che matchano il pattern (ricorsivamente dalla cwd)."""
-    cwd = os.getcwd()
-    matches = glob.glob(os.path.join(cwd, "**", pattern), recursive=True)
-    return matches
-
-def load_data(data_folder=None):
+def load_data(data_folder="dati-mensili-per-comune"):
     """
-    Carica i file 'turismo-per-mese-comune-*.txt' con gestione flessibile
-    di separatori e colonne. Restituisce un unico DataFrame.
+    Carica i file 'turismo-per-mese-comune-*.txt' con colonne mensili
+    e li trasforma in formato lungo (mese, presenze).
     """
     import os
     import pandas as pd
@@ -21,58 +15,55 @@ def load_data(data_folder=None):
                    "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
     frames = []
 
+    # Trova i file giusti ovunque nel progetto
     matches = glob.glob(os.path.join(os.getcwd(), "**", "turismo-per-mese-comune*.txt"), recursive=True)
 
     if not matches:
-        print("❌ Nessun file 'turismo-per-mese-comune' trovato.")
+        print("⚠️ Nessun file 'turismo-per-mese-comune' trovato.")
         return pd.DataFrame()
 
     for path in matches:
-        file = os.path.basename(path)
         try:
-            # prova separatori comuni
-            for sep in [";", ",", "\t"]:
-                try:
-                    df = pd.read_csv(path, sep=sep, encoding="utf-8")
-                    if len(df.columns) > 3:
-                        break
-                except Exception:
-                    continue
-            if df.empty:
-                print(f"⚠️ File vuoto: {file}")
-                continue
-        except Exception as e:
-            print(f"⚠️ Errore leggendo {file}: {e}")
-            continue
+            df = pd.read_csv(path, sep=";", encoding="utf-8")
+        except UnicodeDecodeError:
+            df = pd.read_csv(path, sep=";", encoding="latin1")
 
-        # pulizia e rinomina colonne
         df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-        if "denominazione_comune" in df.columns:
-            df.rename(columns={"denominazione_comune": "comune"}, inplace=True)
-        if "totale_presenze" in df.columns:
-            df.rename(columns={"totale_presenze": "presenze"}, inplace=True)
-        if "mese_rilevazione" in df.columns:
-            df.rename(columns={"mese_rilevazione": "mese"}, inplace=True)
 
-        if "comune" not in df.columns or "presenze" not in df.columns:
-            print(f"⚠️ Colonne non riconosciute in {file}: {list(df.columns)}")
+        # Verifica che ci siano colonne mensili
+        mesi_colonne = [c for c in df.columns if any(mese.lower() in c for mese in
+                         ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"])]
+        if not mesi_colonne:
+            print(f"⚠️ Nessuna colonna mensile trovata in {path}, saltato.")
             continue
 
-        # aggiungi colonna anno
-        year = "".join([c for c in file if c.isdigit()])
-        df["anno"] = int(year) if year else None
+        # Normalizza nome del comune
+        if "comuni" in df.columns:
+            df.rename(columns={"comuni": "comune"}, inplace=True)
 
-        # normalizza mese
-        if "mese" in df.columns:
-            df["mese"] = df["mese"].astype(str).str.strip().str[:3].str.capitalize()
-            df["mese"] = pd.Categorical(df["mese"], categories=ordine_mesi, ordered=True)
+        # Estrai solo i campi utili
+        keep = ["anno", "comune"] + mesi_colonne
+        df = df[keep]
 
-        df = df.dropna(subset=["comune", "presenze"])
-        frames.append(df)
-        print(f"✅ Caricato {file} -> {len(df)} righe | Colonne: {list(df.columns)}")
+        # Converte le colonne mensili in formato lungo
+        df_long = df.melt(id_vars=["anno", "comune"],
+                          value_vars=mesi_colonne,
+                          var_name="mese",
+                          value_name="presenze")
+
+        # Normalizza nome del mese
+        df_long["mese"] = df_long["mese"].str.extract(r"(\w+)")[0].str[:3].str.capitalize()
+        df_long["mese"] = pd.Categorical(df_long["mese"], categories=ordine_mesi, ordered=True)
+
+        # Pulisci valori
+        df_long["presenze"] = pd.to_numeric(df_long["presenze"], errors="coerce").fillna(0).astype(int)
+        df_long["comune"] = df_long["comune"].str.strip()
+
+        frames.append(df_long)
+        print(f"✅ File caricato: {os.path.basename(path)} ({len(df_long)} righe)")
 
     if not frames:
-        print("❌ Nessun file comunale leggibile trovato.")
+        print("❌ Nessun file comunale valido caricato.")
         return pd.DataFrame()
 
     data = pd.concat(frames, ignore_index=True)
