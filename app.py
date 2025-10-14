@@ -7,16 +7,13 @@ from etl import load_data, load_provincia_belluno
 # 🔐 LOGIN SEMPLICE
 # ======================
 st.set_page_config(page_title="Turismo Veneto - Dashboard", layout="wide")
-
 st.title("📊 Turismo Veneto - Dashboard Interattiva")
 
 password = st.text_input("Inserisci password per accedere:", type="password")
-
-if password != "segreta123":
+if password != "veneto2025":
     if password:
         st.error("❌ Password errata. Riprova.")
     st.stop()
-
 st.success("✅ Accesso consentito")
 
 # ======================
@@ -24,19 +21,19 @@ st.success("✅ Accesso consentito")
 # ======================
 st.markdown("### 📦 Caricamento dati...")
 
-data = load_data()
-provincia = load_provincia_belluno()
+data = load_data("dolomiti-turismo-veneto/dati-mensili-per-comune")
+provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
 
 if data.empty:
-    st.error("❌ Nessun dato comunale trovato.")
+    st.error("❌ Nessun dato comunale caricato.")
     st.stop()
 else:
     st.success(f"✅ Dati comunali caricati: {len(data):,} righe, {data['anno'].nunique()} anni, {data['comune'].nunique()} comuni.")
 
-if provincia.empty:
-    st.warning("⚠️ Nessun dato provinciale trovato.")
-else:
+if not provincia.empty:
     st.success(f"✅ Dati provinciali caricati: {len(provincia):,} righe, {provincia['anno'].nunique()} anni.")
+else:
+    st.warning("⚠️ Nessun dato provinciale caricato.")
 
 # ======================
 # 🔍 FILTRI
@@ -47,8 +44,6 @@ anni = sorted(data["anno"].unique())
 comuni = sorted(data["comune"].unique())
 
 anno_sel = st.sidebar.multiselect("Seleziona anni", anni, default=anni)
-
-# ✅ Imposta Belluno come default solo se esiste
 default_comune = ["Belluno"] if "Belluno" in comuni else [comuni[0]]
 comune_sel = st.sidebar.multiselect("Seleziona Comuni", comuni, default=default_comune)
 
@@ -80,9 +75,9 @@ if len(anno_sel) == 2:
     st.metric(label=f"Variazione {anno1}→{anno2}", value=f"{diff:+,}", delta=f"{perc:.2f}%")
 
 # ======================
-# 📊 GRAFICO: ANDAMENTO MENSILE
+# 📊 ANDAMENTO MENSILE
 # ======================
-st.markdown("## 📅 Andamento mensile")
+st.markdown("## 📅 Andamento mensile per Comune")
 
 if data_filtrata.empty:
     st.warning("Nessun dato disponibile per i filtri selezionati.")
@@ -97,7 +92,7 @@ else:
         title="Confronto presenze mensili per anno e comune",
         labels={"presenze": "Presenze", "mese": "Mese", "anno": "Anno"},
     )
-    fig.update_layout(legend_title_text="Anno", legend_orientation="h", legend_y=-0.2)
+    fig.update_layout(legend_title_text="Anno", legend_orientation="h", legend_y=-0.25)
     st.plotly_chart(fig, use_container_width=True)
 
 # ======================
@@ -121,39 +116,39 @@ if len(anno_sel) == 2:
 st.dataframe(tabella.style.format({"Differenza %": "{:.2f}%"}))
 
 # ======================
-# 🏔️ SEZIONE PROVINCIA DI BELLUNO
+# 🏔️ PROVINCIA DI BELLUNO
 # ======================
+st.markdown("---")
 st.markdown("## 🏔️ Provincia di Belluno – Arrivi e Presenze per mese")
 
-if not provincia.empty:
+if provincia.empty:
+    st.warning("⚠️ Nessun dato provinciale disponibile.")
+else:
     col1, col2 = st.columns(2)
 
     with col1:
-        fig_arrivi = px.bar(
+        fig_arrivi = px.line(
             provincia,
             x="mese",
             y="arrivi",
             color="anno",
-            barmode="group",
-            title="Arrivi mensili – Provincia di Belluno",
+            markers=True,
+            title="Andamento Arrivi mensili – Provincia di Belluno",
             labels={"arrivi": "Arrivi", "mese": "Mese"},
         )
         st.plotly_chart(fig_arrivi, use_container_width=True)
 
     with col2:
-        fig_presenze = px.bar(
+        fig_presenze = px.line(
             provincia,
             x="mese",
             y="presenze",
             color="anno",
-            barmode="group",
-            title="Presenze mensili – Provincia di Belluno",
+            markers=True,
+            title="Andamento Presenze mensili – Provincia di Belluno",
             labels={"presenze": "Presenze", "mese": "Mese"},
         )
         st.plotly_chart(fig_presenze, use_container_width=True)
-
-else:
-    st.warning("⚠️ Nessun dato provinciale disponibile.")
 
 # ======================
 # 🧾 FOOTER
