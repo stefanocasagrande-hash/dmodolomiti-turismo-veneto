@@ -10,67 +10,74 @@ def find_files_recursive(pattern):
 
 def load_data(data_folder=None):
     """
-    Cerca ricorsivamente file 'turismo-per-mese-comune*.txt' sotto la working dir
-    e li carica. Restituisce DataFrame concatenato.
+    Carica i file 'turismo-per-mese-comune-*.txt' con gestione flessibile
+    di separatori e colonne. Restituisce un unico DataFrame.
     """
+    import os
+    import pandas as pd
+    import glob
+
     ordine_mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
                    "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
     frames = []
 
-    # cerca ricorsivamente i file con quel pattern
-    matches = find_files_recursive("turismo-per-mese-comune*.txt")
+    matches = glob.glob(os.path.join(os.getcwd(), "**", "turismo-per-mese-comune*.txt"), recursive=True)
 
-    print(f"DEBUG: cwd = {os.getcwd()}")
-    print(f"DEBUG: file trovati per 'turismo-per-mese-comune': {matches}")
+    if not matches:
+        print("❌ Nessun file 'turismo-per-mese-comune' trovato.")
+        return pd.DataFrame()
 
     for path in matches:
         file = os.path.basename(path)
         try:
-            if os.path.getsize(path) == 0:
-                print(f"⚠️ File vuoto saltato: {path}")
-                continue
-            try:
-                df = pd.read_csv(path, sep=";", encoding="utf-8")
-            except UnicodeDecodeError:
-                df = pd.read_csv(path, sep=";", encoding="latin1")
+            # prova separatori comuni
+            for sep in [";", ",", "\t"]:
+                try:
+                    df = pd.read_csv(path, sep=sep, encoding="utf-8")
+                    if len(df.columns) > 3:
+                        break
+                except Exception:
+                    continue
             if df.empty:
-                print(f"⚠️ File senza dati: {path}")
+                print(f"⚠️ File vuoto: {file}")
                 continue
         except Exception as e:
-            print(f"⚠️ Errore leggendo {path}: {e}")
+            print(f"⚠️ Errore leggendo {file}: {e}")
             continue
 
-        # normalizza colonne
-        df.columns = [c.strip().lower() for c in df.columns]
-        # estrai anno dal nome file (es. turismo-per-mese-comune-2023-presenze.txt)
+        # pulizia e rinomina colonne
+        df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
+        if "denominazione_comune" in df.columns:
+            df.rename(columns={"denominazione_comune": "comune"}, inplace=True)
+        if "totale_presenze" in df.columns:
+            df.rename(columns={"totale_presenze": "presenze"}, inplace=True)
+        if "mese_rilevazione" in df.columns:
+            df.rename(columns={"mese_rilevazione": "mese"}, inplace=True)
+
+        if "comune" not in df.columns or "presenze" not in df.columns:
+            print(f"⚠️ Colonne non riconosciute in {file}: {list(df.columns)}")
+            continue
+
+        # aggiungi colonna anno
         year = "".join([c for c in file if c.isdigit()])
         df["anno"] = int(year) if year else None
 
-        # gestione colonne possibili
-        if "comune" not in df.columns:
-            if "comuni" in df.columns:
-                df.rename(columns={"comuni": "comune"}, inplace=True)
-            elif "denominazione_comune" in df.columns:
-                df.rename(columns={"denominazione_comune": "comune"}, inplace=True)
+        # normalizza mese
+        if "mese" in df.columns:
+            df["mese"] = df["mese"].astype(str).str.strip().str[:3].str.capitalize()
+            df["mese"] = pd.Categorical(df["mese"], categories=ordine_mesi, ordered=True)
 
-        if "presenze" not in df.columns or "mese" not in df.columns:
-            print(f"⚠️ Colonne mancanti in {path} (presenze/mese). Saltato.")
-            continue
-
-        df["mese"] = df["mese"].astype(str).str.strip().str[:3].str.capitalize()
-        df["mese"] = pd.Categorical(df["mese"], categories=ordine_mesi, ordered=True)
         df = df.dropna(subset=["comune", "presenze"])
-        print(f"✅ Caricato {path} -> righe: {len(df)}")
         frames.append(df)
+        print(f"✅ Caricato {file} -> {len(df)} righe | Colonne: {list(df.columns)}")
 
     if not frames:
-        print("❌ Nessun file valido trovato per i dati comunali.")
+        print("❌ Nessun file comunale leggibile trovato.")
         return pd.DataFrame()
 
     data = pd.concat(frames, ignore_index=True)
     data = data.sort_values(["anno", "mese", "comune"])
     return data
-
 
 def load_provincia_belluno(data_folder=None):
     """
