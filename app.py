@@ -47,7 +47,10 @@ anni = sorted(data["anno"].unique())
 comuni = sorted(data["comune"].unique())
 
 anno_sel = st.sidebar.multiselect("Seleziona anni", anni, default=anni)
-comune_sel = st.sidebar.multiselect("Seleziona Comuni", comuni, default=["Belluno"])
+
+# ✅ Imposta Belluno come default solo se esiste
+default_comune = ["Belluno"] if "Belluno" in comuni else [comuni[0]]
+comune_sel = st.sidebar.multiselect("Seleziona Comuni", comuni, default=default_comune)
 
 data_filtrata = data[data["anno"].isin(anno_sel) & data["comune"].isin(comune_sel)]
 
