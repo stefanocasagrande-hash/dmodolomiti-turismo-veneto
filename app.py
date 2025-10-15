@@ -4,12 +4,15 @@ import plotly.express as px
 from etl import load_data, load_provincia_belluno
 
 # ======================
-# 🔐 LOGIN SEMPLICE
+# ⚙️ CONFIGURAZIONE BASE
 # ======================
-st.set_page_config(page_title="Turismo Veneto - Dashboard", layout="wide")
-st.title("📊 Turismo Veneto - Dashboard Interattiva")
+st.set_page_config(page_title="Dashboard Turismo Veneto", layout="wide")
+st.title("📊 Dashboard Turismo Veneto")
 
-password = st.text_input("Inserisci password per accedere:", type="password")
+# ======================
+# 🔐 ACCESSO CON PASSWORD
+# ======================
+password = st.text_input("Inserisci password", type="password")
 if password != "veneto2025":
     if password:
         st.error("❌ Password errata. Riprova.")
@@ -17,112 +20,97 @@ if password != "veneto2025":
 st.success("✅ Accesso consentito")
 
 # ======================
-# 🔄 CARICAMENTO DATI
+# 📥 CARICAMENTO DATI COMUNALI
 # ======================
-st.markdown("### 📦 Caricamento dati...")
+st.sidebar.header("⚙️ Filtri principali")
 
 data = load_data("dolomiti-turismo-veneto/dati-mensili-per-comune")
-provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
 
 if data.empty:
-    st.error("❌ Nessun dato comunale caricato.")
+    st.error("❌ Nessun dato caricato. Controlla la cartella 'dati-mensili-per-comune'.")
     st.stop()
-else:
-    st.success(f"✅ Dati comunali caricati: {len(data):,} righe, {data['anno'].nunique()} anni, {data['comune'].nunique()} comuni.")
 
-if not provincia.empty:
-    st.success(f"✅ Dati provinciali caricati: {len(provincia):,} righe, {provincia['anno'].nunique()} anni.")
-else:
-    st.warning("⚠️ Nessun dato provinciale caricato.")
+# Filtri dinamici
+anni = sorted(data["anno"].dropna().unique())
+comuni = sorted(data["comune"].dropna().unique())
+mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
 
-# ======================
-# 🔍 FILTRI
-# ======================
-st.sidebar.header("🎚️ Filtri")
+anno_sel = st.sidebar.multiselect("Seleziona Anno", anni, default=anni)
+comune_sel = st.sidebar.multiselect("Seleziona Comune", comuni, default=[comuni[0]])
+mesi_sel = st.sidebar.multiselect("Seleziona Mese", mesi, default=mesi)
 
-anni = sorted(data["anno"].unique())
-comuni = sorted(data["comune"].unique())
-
-anno_sel = st.sidebar.multiselect("Seleziona anni", anni, default=anni)
-default_comune = ["Belluno"] if "Belluno" in comuni else [comuni[0]]
-comune_sel = st.sidebar.multiselect("Seleziona Comuni", comuni, default=default_comune)
-
-data_filtrata = data[data["anno"].isin(anno_sel) & data["comune"].isin(comune_sel)]
+# Filtraggio dati
+df_filtered = data[
+    data["anno"].isin(anno_sel)
+    & data["comune"].isin(comune_sel)
+    & data["mese"].isin(mesi_sel)
+]
 
 # ======================
 # 🔢 INDICATORI PRINCIPALI
 # ======================
-st.markdown("## 📈 Indicatori principali")
+st.header("📈 Indicatori principali")
 
-col1, col2 = st.columns(2)
-for comune in comune_sel:
-    df_comune = data_filtrata[data_filtrata["comune"] == comune]
-    with col1:
-        st.markdown(f"### 🏙️ {comune}")
-    with col2:
-        for anno in anno_sel:
-            tot_presenze = int(df_comune[df_comune["anno"] == anno]["presenze"].sum())
-            st.metric(label=f"Presenze totali {anno}", value=f"{tot_presenze:,}")
-
-if len(anno_sel) == 2:
-    anno1, anno2 = anno_sel
-    df_diff = data_filtrata[data_filtrata["anno"].isin([anno1, anno2])]
-    diff = (
-        df_diff[df_diff["anno"] == anno2]["presenze"].sum()
-        - df_diff[df_diff["anno"] == anno1]["presenze"].sum()
-    )
-    perc = (diff / df_diff[df_diff["anno"] == anno1]["presenze"].sum()) * 100
-    st.metric(label=f"Variazione {anno1}→{anno2}", value=f"{diff:+,}", delta=f"{perc:.2f}%")
+tot_presenze = df_filtered["presenze"].sum()
+st.metric(label="Totale Presenze (filtrate)", value=f"{tot_presenze:,}".replace(",", "."))
 
 # ======================
-# 📊 ANDAMENTO MENSILE
+# 📊 GRAFICO ANDAMENTO MENSILE
 # ======================
-st.markdown("## 📅 Andamento mensile per Comune")
+st.subheader("📊 Andamento mensile")
 
-if data_filtrata.empty:
-    st.warning("Nessun dato disponibile per i filtri selezionati.")
-else:
-    fig = px.bar(
-        data_filtrata,
+if not df_filtered.empty:
+    fig = px.line(
+        df_filtered,
         x="mese",
         y="presenze",
         color="anno",
-        barmode="group",
-        facet_col="comune" if len(comune_sel) > 1 else None,
-        title="Confronto presenze mensili per anno e comune",
-        labels={"presenze": "Presenze", "mese": "Mese", "anno": "Anno"},
+        markers=True,
+        facet_row="comune"
     )
-    fig.update_layout(legend_title_text="Anno", legend_orientation="h", legend_y=-0.25)
+    fig.update_layout(
+        xaxis=dict(categoryorder="array", categoryarray=mesi),
+        legend_title_text="Anno"
+    )
     st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("Nessun dato disponibile per i filtri selezionati.")
 
 # ======================
-# 📋 TABELLA DETTAGLIO
+# 📊 CONFRONTO TRA MESI NEI DIVERSI ANNI
 # ======================
-st.markdown("## 📋 Tabella presenze filtrate")
+st.subheader("📆 Confronto tra mesi nei diversi anni")
 
-tabella = (
-    data_filtrata.groupby(["anno", "comune"])["presenze"]
-    .sum()
-    .reset_index()
-    .pivot(index="comune", columns="anno", values="presenze")
-    .fillna(0)
-)
-
-if len(anno_sel) == 2:
-    anno1, anno2 = anno_sel
-    tabella["Differenza assoluta"] = tabella[anno2] - tabella[anno1]
-    tabella["Differenza %"] = ((tabella[anno2] - tabella[anno1]) / tabella[anno1]) * 100
-
-st.dataframe(tabella.style.format({"Differenza %": "{:.2f}%"}))
+if not df_filtered.empty:
+    fig_bar = px.bar(
+        df_filtered,
+        x="anno",
+        y="presenze",
+        color="mese",
+        barmode="group",
+        facet_row="comune"
+    )
+    fig_bar.update_layout(
+        legend_title_text="Mese",
+        bargap=0.2,
+        bargroupgap=0.05,
+        xaxis_title="Anno",
+        yaxis_title="Presenze"
+    )
+    st.plotly_chart(fig_bar, use_container_width=True)
+else:
+    st.info("Nessun dato disponibile per i filtri selezionati.")
 
 # ======================
-# 🏔️ PROVINCIA DI BELLUNO
+# 🏔️ SEZIONE PROVINCIA DI BELLUNO
 # ======================
 st.markdown("---")
-st.markdown("## 🏔️ Provincia di Belluno – Arrivi e Presenze per mese")
+st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
+
+provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
 
 if provincia.empty:
-    st.warning("⚠️ Nessun dato provinciale disponibile.")
+    st.warning("⚠️ Nessun dato provinciale caricato.")
 else:
     col1, col2 = st.columns(2)
 
@@ -133,9 +121,10 @@ else:
             y="arrivi",
             color="anno",
             markers=True,
-            title="Andamento Arrivi mensili – Provincia di Belluno",
+            title="Andamento Arrivi mensili",
             labels={"arrivi": "Arrivi", "mese": "Mese"},
         )
+        fig_arrivi.update_layout(legend_title_text="Anno")
         st.plotly_chart(fig_arrivi, use_container_width=True)
 
     with col2:
@@ -145,10 +134,22 @@ else:
             y="presenze",
             color="anno",
             markers=True,
-            title="Andamento Presenze mensili – Provincia di Belluno",
+            title="Andamento Presenze mensili",
             labels={"presenze": "Presenze", "mese": "Mese"},
         )
+        fig_presenze.update_layout(legend_title_text="Anno")
         st.plotly_chart(fig_presenze, use_container_width=True)
+
+    # Tabella riepilogativa mensile
+    st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
+    st.dataframe(
+        provincia.pivot_table(
+            index="mese",
+            columns="anno",
+            values=["arrivi", "presenze"],
+            aggfunc="sum"
+        ).round(0)
+    )
 
 # ======================
 # 🧾 FOOTER
