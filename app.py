@@ -70,7 +70,8 @@ else:
 # ======================
 st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (Comuni)")
 
-if len(anno_sel) >= 1 and not df_filtered.empty:
+if not df_filtered.empty and len(anno_sel) >= 1:
+    # Pivot: Comune × Mese × Anno
     tabella = (
         df_filtered.groupby(["anno", "comune", "mese"])["presenze"]
         .sum()
@@ -78,34 +79,32 @@ if len(anno_sel) >= 1 and not df_filtered.empty:
         .pivot_table(index=["comune", "mese"], columns="anno", values="presenze", fill_value=0)
     )
 
-    if len(anno_sel) >= 2:
-        # Calcolo tra anno più recente (maggiore) e anno precedente (minore)
+    # Se sono selezionati esattamente 2 anni, calcola differenza e variazione %
+    if len(anno_sel) == 2:
         anni_sorted = sorted(anno_sel)
-        anno_recent = anni_sorted[-1]   # es. 2024
-        anno_prev = anni_sorted[0]      # es. 2023
+        anno_prev = anni_sorted[0]     # meno recente (es. 2023)
+        anno_recent = anni_sorted[1]   # più recente (es. 2024)
 
-        tabella["Differenza"] = tabella.get(anno_recent, 0) - tabella.get(anno_prev, 0)
+        tabella["Differenza"] = tabella[anno_recent] - tabella[anno_prev]
         with pd.option_context('mode.use_inf_as_na', True):
             tabella["Variazione %"] = (tabella["Differenza"] / tabella[anno_prev].replace(0, pd.NA)) * 100
 
-        # Formattazione leggibile
-        fmt = {
-            anno_recent: "{:,.0f}".format,
-            anno_prev: "{:,.0f}".format,
+        # Formattazione
+        fmt = {col: "{:,.0f}".format for col in tabella.columns if isinstance(col, int)}
+        fmt.update({
             "Differenza": "{:,.0f}".format,
             "Variazione %": "{:.2f}%"
-        }
+        })
 
-        st.dataframe(
-            tabella.style.format(fmt, thousands=".")
+        st.markdown(
+            f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come {anno_recent} − {anno_prev}."
         )
+        st.dataframe(tabella.style.format(fmt, thousands="."))
 
     else:
-        # Se un solo anno, formatta comunque i numeri con separatore
-        st.dataframe(
-            tabella.style.format("{:,.0f}", thousands=".")
-        )
-
+        # Selezionati più o meno di 2 anni → solo i dati base, formattati
+        fmt = {col: "{:,.0f}".format for col in tabella.columns if isinstance(col, int)}
+        st.dataframe(tabella.style.format(fmt, thousands="."))
 else:
     st.info("Seleziona almeno un anno e un comune per visualizzare la tabella comparativa.")
 
