@@ -13,7 +13,7 @@ st.title("📊 Dashboard Turismo Veneto")
 # 🔐 ACCESSO CON PASSWORD
 # ======================
 password = st.text_input("Inserisci password", type="password")
-if password != "veneto2025":
+if password != "segreta123":
     if password:
         st.error("❌ Password errata. Riprova.")
     st.stop()
@@ -47,7 +47,7 @@ df_filtered = data[
 ]
 
 # ======================
-# 🔢 INDICATORI PRINCIPALI
+# 🔢 INDICATORI PRINCIPALI COMUNALI
 # ======================
 st.header("📈 Indicatori principali")
 
@@ -116,11 +116,29 @@ if mostra_provincia:
     if provincia.empty:
         st.warning("⚠️ Nessun dato provinciale caricato.")
     else:
-        col1, col2 = st.columns(2)
+        # Filtra per anni selezionati (se coincidono)
+        provincia_filtrata = provincia[provincia["anno"].isin(anno_sel)] if "anno" in provincia.columns else provincia
 
-        with col1:
+        # ======================
+        # 🔢 INDICATORI PROVINCIALI
+        # ======================
+        st.subheader("📈 Indicatori provincia Belluno")
+
+        col1, col2 = st.columns(2)
+        tot_arrivi = int(provincia_filtrata["arrivi"].sum())
+        tot_presenze_prov = int(provincia_filtrata["presenze"].sum())
+
+        col1.metric("Totale Arrivi", f"{tot_arrivi:,}".replace(",", "."))
+        col2.metric("Totale Presenze", f"{tot_presenze_prov:,}".replace(",", "."))
+
+        # ======================
+        # 📊 GRAFICI PROVINCIALI
+        # ======================
+        col3, col4 = st.columns(2)
+
+        with col3:
             fig_arrivi = px.line(
-                provincia,
+                provincia_filtrata,
                 x="mese",
                 y="arrivi",
                 color="anno",
@@ -131,9 +149,9 @@ if mostra_provincia:
             fig_arrivi.update_layout(legend_title_text="Anno")
             st.plotly_chart(fig_arrivi, use_container_width=True)
 
-        with col2:
+        with col4:
             fig_presenze = px.line(
-                provincia,
+                provincia_filtrata,
                 x="mese",
                 y="presenze",
                 color="anno",
@@ -144,16 +162,17 @@ if mostra_provincia:
             fig_presenze.update_layout(legend_title_text="Anno")
             st.plotly_chart(fig_presenze, use_container_width=True)
 
-        # Tabella riepilogativa mensile
+        # ======================
+        # 📋 TABELLA RIEPILOGATIVA
+        # ======================
         st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
-        st.dataframe(
-            provincia.pivot_table(
-                index="mese",
-                columns="anno",
-                values=["arrivi", "presenze"],
-                aggfunc="sum"
-            ).round(0)
-        )
+        tabella = provincia_filtrata.pivot_table(
+            index="mese",
+            columns="anno",
+            values=["arrivi", "presenze"],
+            aggfunc="sum"
+        ).round(0)
+        st.dataframe(tabella)
 
 # ======================
 # 🧾 FOOTER
