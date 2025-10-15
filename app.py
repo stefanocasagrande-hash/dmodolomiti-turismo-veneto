@@ -251,5 +251,5 @@ if mostra_provincia:
 # ======================
 # 🧾 FOOTER
 # ======================
-st.caption("© 2025 Dashboard Turismo Veneto – DMO Dolomiti. Tutti i diritti riservati.")
+st.caption("© 2025 Dashboard Fondazione D.M.O. Dolomiti Bellunesi - Per uso interno - Tutti i diritti riservati.")
 
