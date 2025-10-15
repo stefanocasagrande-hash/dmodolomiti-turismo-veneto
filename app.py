@@ -79,7 +79,7 @@ if len(anno_sel) >= 1 and not df_filtered.empty:
     )
 
     if len(anno_sel) >= 2:
-        # prendo il numero più grande come anno più recente
+        # Calcolo tra anno più recente (maggiore) e anno precedente (minore)
         anni_sorted = sorted(anno_sel)
         anno_recent = anni_sorted[-1]   # es. 2024
         anno_prev = anni_sorted[0]      # es. 2023
@@ -88,9 +88,24 @@ if len(anno_sel) >= 1 and not df_filtered.empty:
         with pd.option_context('mode.use_inf_as_na', True):
             tabella["Variazione %"] = (tabella["Differenza"] / tabella[anno_prev].replace(0, pd.NA)) * 100
 
-        st.dataframe(tabella.style.format({"Variazione %": "{:.2f}%"}))
+        # Formattazione leggibile
+        fmt = {
+            anno_recent: "{:,.0f}".format,
+            anno_prev: "{:,.0f}".format,
+            "Differenza": "{:,.0f}".format,
+            "Variazione %": "{:.2f}%"
+        }
+
+        st.dataframe(
+            tabella.style.format(fmt, thousands=".")
+        )
+
     else:
-        st.dataframe(tabella)
+        # Se un solo anno, formatta comunque i numeri con separatore
+        st.dataframe(
+            tabella.style.format("{:,.0f}", thousands=".")
+        )
+
 else:
     st.info("Seleziona almeno un anno e un comune per visualizzare la tabella comparativa.")
 
