@@ -13,7 +13,7 @@ st.title("📊 Dashboard Turismo Veneto")
 # 🔐 ACCESSO CON PASSWORD
 # ======================
 password = st.text_input("Inserisci password", type="password")
-if password != "segreta123":
+if password != "veneto2025":
     if password:
         st.error("❌ Password errata. Riprova.")
     st.stop()
@@ -102,54 +102,58 @@ else:
     st.info("Nessun dato disponibile per i filtri selezionati.")
 
 # ======================
-# 🏔️ SEZIONE PROVINCIA DI BELLUNO
+# 🏔️ TOGGLE PROVINCIA DI BELLUNO
 # ======================
-st.markdown("---")
-st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
+st.sidebar.markdown("---")
+mostra_provincia = st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno")
 
-provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
+if mostra_provincia:
+    st.markdown("---")
+    st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
 
-if provincia.empty:
-    st.warning("⚠️ Nessun dato provinciale caricato.")
-else:
-    col1, col2 = st.columns(2)
+    provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
 
-    with col1:
-        fig_arrivi = px.line(
-            provincia,
-            x="mese",
-            y="arrivi",
-            color="anno",
-            markers=True,
-            title="Andamento Arrivi mensili",
-            labels={"arrivi": "Arrivi", "mese": "Mese"},
+    if provincia.empty:
+        st.warning("⚠️ Nessun dato provinciale caricato.")
+    else:
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig_arrivi = px.line(
+                provincia,
+                x="mese",
+                y="arrivi",
+                color="anno",
+                markers=True,
+                title="Andamento Arrivi mensili",
+                labels={"arrivi": "Arrivi", "mese": "Mese"},
+            )
+            fig_arrivi.update_layout(legend_title_text="Anno")
+            st.plotly_chart(fig_arrivi, use_container_width=True)
+
+        with col2:
+            fig_presenze = px.line(
+                provincia,
+                x="mese",
+                y="presenze",
+                color="anno",
+                markers=True,
+                title="Andamento Presenze mensili",
+                labels={"presenze": "Presenze", "mese": "Mese"},
+            )
+            fig_presenze.update_layout(legend_title_text="Anno")
+            st.plotly_chart(fig_presenze, use_container_width=True)
+
+        # Tabella riepilogativa mensile
+        st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
+        st.dataframe(
+            provincia.pivot_table(
+                index="mese",
+                columns="anno",
+                values=["arrivi", "presenze"],
+                aggfunc="sum"
+            ).round(0)
         )
-        fig_arrivi.update_layout(legend_title_text="Anno")
-        st.plotly_chart(fig_arrivi, use_container_width=True)
-
-    with col2:
-        fig_presenze = px.line(
-            provincia,
-            x="mese",
-            y="presenze",
-            color="anno",
-            markers=True,
-            title="Andamento Presenze mensili",
-            labels={"presenze": "Presenze", "mese": "Mese"},
-        )
-        fig_presenze.update_layout(legend_title_text="Anno")
-        st.plotly_chart(fig_presenze, use_container_width=True)
-
-    # Tabella riepilogativa mensile
-    st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
-    st.dataframe(
-        provincia.pivot_table(
-            index="mese",
-            columns="anno",
-            values=["arrivi", "presenze"],
-            aggfunc="sum"
-        ).round(0)
-    )
 
 # ======================
 # 🧾 FOOTER
