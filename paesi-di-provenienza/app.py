@@ -136,4 +136,4 @@ else:
 # FOOTER
 # ---------------------------------------------------------
 st.markdown("---")
-st.caption("Elaborazione dati a cura di **D.M.O. Dolomiti Bellunesi – Osservatorio Gemellato Turistico Regionale del Veneto**.")
+st.caption("© 2025 Dashboard Fondazione D.M.O. Dolomiti Bellunesi - Per uso interno - Tutti i diritti riservati.")
