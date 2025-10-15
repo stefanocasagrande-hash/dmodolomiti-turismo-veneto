@@ -13,7 +13,7 @@ st.title("📊 Dashboard Turismo Veneto")
 # 🔐 Protezione con password
 # ======================
 password = st.text_input("Inserisci password", type="password")
-if password != "veneto2025":
+if password != "segreta123":
     if password:
         st.error("❌ Password errata. Riprova.")
     st.stop()
