@@ -13,7 +13,7 @@ st.title("📊 Dashboard Turismo Veneto")
 # 🔐 ACCESSO CON PASSWORD
 # ======================
 password = st.text_input("Inserisci password", type="password")
-if password != "segreta123":
+if password != "veneto2025":
     if password:
         st.error("❌ Password errata. Riprova.")
     st.stop()
@@ -155,7 +155,7 @@ if mostra_provincia:
 
         prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)]
 
-        # Indicatori
+        # Indicatori Provincia
         st.subheader("📈 Indicatori Provincia di Belluno")
         for anno in anni_sel_prov:
             prov_annuale = prov_filtrata[prov_filtrata["anno"] == anno]
@@ -195,15 +195,28 @@ if mostra_provincia:
             fig_pres.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
             st.plotly_chart(fig_pres, use_container_width=True)
 
-        # Tabella riepilogo
+        # Tabella riepilogo e confronto anni
         st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
+
         tabella_prov = prov_filtrata.pivot_table(
-            index=["mese"],
+            index="mese",
             columns="anno",
             values=["arrivi", "presenze"],
             aggfunc="sum"
         ).round(0)
-        st.dataframe(tabella_prov)
+
+        # Se sono stati selezionati due anni, aggiungi differenze e variazioni
+        if len(anni_sel_prov) == 2:
+            anno1, anno2 = anni_sel_prov
+            for metrica in ["arrivi", "presenze"]:
+                tabella_prov[(metrica, "Differenza")] = (
+                    tabella_prov[(metrica, anno2)] - tabella_prov[(metrica, anno1)]
+                )
+                tabella_prov[(metrica, "Variazione %")] = (
+                    (tabella_prov[(metrica, "Differenza")] / tabella_prov[(metrica, anno1)].replace(0, pd.NA)) * 100
+                )
+
+        st.dataframe(tabella_prov.style.format({("arrivi", "Variazione %"): "{:.2f}%", ("presenze", "Variazione %"): "{:.2f}%"}))
 
 # ======================
 # 🧾 FOOTER
