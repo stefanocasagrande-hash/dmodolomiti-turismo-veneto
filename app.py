@@ -13,7 +13,7 @@ st.title("📊 Dashboard Turismo Veneto")
 # 🔐 ACCESSO CON PASSWORD
 # ======================
 password = st.text_input("Inserisci password", type="password")
-if password != "segreta123":
+if password != "veneto2025":
     if password:
         st.error("❌ Password errata. Riprova.")
     st.stop()
@@ -58,29 +58,30 @@ st.header("📈 Indicatori principali – Comuni")
 if df_filtered.empty:
     st.warning("Nessun dato disponibile per i filtri selezionati.")
 else:
-    cols = st.columns(len(anno_sel))
-    for i, anno in enumerate(anno_sel):
-        tot_presenze = int(df_filtered[df_filtered["anno"] == anno]["presenze"].sum())
-        cols[i].metric(f"Totale Presenze {anno}", f"{tot_presenze:,}".replace(",", "."))
+    for comune in comune_sel:
+        st.subheader(f"🏙️ {comune}")
+        col_comm = st.columns(len(anno_sel))
+        for i, anno in enumerate(anno_sel):
+            tot_pres = int(df_filtered[(df_filtered["anno"] == anno) & (df_filtered["comune"] == comune)]["presenze"].sum())
+            col_comm[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
 
 # ======================
-# 📋 TABELLA COMPARATIVA TRA ANNI
+# 📋 TABELLA CONFRONTO TRA ANNI E MESI
 # ======================
-st.subheader("📊 Confronto tra anni – Differenze e variazioni")
+st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni")
 
 if len(anno_sel) >= 1 and not df_filtered.empty:
     tabella = (
-        df_filtered.groupby(["anno", "comune"])["presenze"]
+        df_filtered.groupby(["anno", "comune", "mese"])["presenze"]
         .sum()
         .reset_index()
-        .pivot(index="comune", columns="anno", values="presenze")
-        .fillna(0)
+        .pivot_table(index=["comune", "mese"], columns="anno", values="presenze", fill_value=0)
     )
 
     if len(anno_sel) == 2:
         anno1, anno2 = anno_sel
-        tabella["Differenza assoluta"] = tabella[anno2] - tabella[anno1]
-        tabella["Variazione %"] = ((tabella[anno2] - tabella[anno1]) / tabella[anno1]) * 100
+        tabella["Differenza"] = tabella[anno2] - tabella[anno1]
+        tabella["Variazione %"] = ((tabella[anno2] - tabella[anno1]) / tabella[anno1].replace(0, pd.NA)) * 100
         st.dataframe(tabella.style.format({"Variazione %": "{:.2f}%"}))
     else:
         st.dataframe(tabella)
@@ -131,7 +132,7 @@ if not df_filtered.empty:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 # ======================
-# 🏔️ SEZIONE PROVINCIA DI BELLUNO (con toggle e filtro separato)
+# 🏔️ SEZIONE PROVINCIA DI BELLUNO (toggle + filtri indipendenti)
 # ======================
 st.sidebar.markdown("---")
 mostra_provincia = st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno")
@@ -147,16 +148,13 @@ if mostra_provincia:
         anno_sel_prov = st.selectbox("Seleziona anno (Provincia)", anni_prov, index=len(anni_prov)-1)
         prov_filtrata = provincia[provincia["anno"] == anno_sel_prov]
 
-        # Indicatori Provincia
         st.subheader("📈 Indicatori Provincia di Belluno")
-
         col1, col2 = st.columns(2)
         tot_arrivi = int(prov_filtrata["arrivi"].sum())
         tot_pres = int(prov_filtrata["presenze"].sum())
         col1.metric("Totale Arrivi", f"{tot_arrivi:,}".replace(",", "."))
         col2.metric("Totale Presenze", f"{tot_pres:,}".replace(",", "."))
 
-        # Variazione anno su anno (se ci sono più anni)
         if len(anni_prov) >= 2:
             anno_prev = max([a for a in anni_prov if a < anno_sel_prov], default=None)
             if anno_prev:
@@ -194,7 +192,6 @@ if mostra_provincia:
             )
             st.plotly_chart(fig_pres, use_container_width=True)
 
-        # Tabella riepilogativa Provincia
         st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
         tabella_prov = prov_filtrata.pivot_table(
             index="mese",
