@@ -13,7 +13,7 @@ st.title("📊 Dashboard Turismo Veneto")
 # 🔐 ACCESSO CON PASSWORD
 # ======================
 password = st.text_input("Inserisci password", type="password")
-if password != "segreta123":
+if password != "veneto2025":
     if password:
         st.error("❌ Password errata. Riprova.")
     st.stop()
@@ -22,7 +22,7 @@ st.success("✅ Accesso consentito")
 # ======================
 # 📥 CARICAMENTO DATI
 # ======================
-st.sidebar.header("⚙️ Filtri principali")
+st.sidebar.header("⚙️ Filtri principali – Dati Comunali")
 
 data = load_data("dolomiti-turismo-veneto/dati-mensili-per-comune")
 provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
@@ -132,69 +132,74 @@ if not df_filtered.empty:
     st.plotly_chart(fig_bar, use_container_width=True)
 
 # ======================
-# 🏔️ SEZIONE PROVINCIA DI BELLUNO (toggle + filtri indipendenti)
+# 🏔️ SEZIONE PROVINCIA DI BELLUNO
 # ======================
 st.sidebar.markdown("---")
 mostra_provincia = st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno")
 
 if mostra_provincia:
-    st.markdown("---")
-    st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
+    st.sidebar.header("⚙️ Filtri – Provincia di Belluno")
 
     if provincia.empty:
         st.warning("⚠️ Nessun dato provinciale caricato.")
     else:
         anni_prov = sorted(provincia["anno"].unique())
-        anno_sel_prov = st.selectbox("Seleziona anno (Provincia)", anni_prov, index=len(anni_prov)-1)
-        prov_filtrata = provincia[provincia["anno"] == anno_sel_prov]
+        anni_sel_prov = st.sidebar.multiselect(
+            "Seleziona Anno (Provincia)",
+            anni_prov,
+            default=[anni_prov[-1]]
+        )
 
+        st.markdown("---")
+        st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
+
+        prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)]
+
+        # Indicatori
         st.subheader("📈 Indicatori Provincia di Belluno")
-        col1, col2 = st.columns(2)
-        tot_arrivi = int(prov_filtrata["arrivi"].sum())
-        tot_pres = int(prov_filtrata["presenze"].sum())
-        col1.metric("Totale Arrivi", f"{tot_arrivi:,}".replace(",", "."))
-        col2.metric("Totale Presenze", f"{tot_pres:,}".replace(",", "."))
+        for anno in anni_sel_prov:
+            prov_annuale = prov_filtrata[prov_filtrata["anno"] == anno]
+            col1, col2 = st.columns(2)
+            tot_arrivi = int(prov_annuale["arrivi"].sum())
+            tot_pres = int(prov_annuale["presenze"].sum())
+            col1.metric(f"Totale Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
+            col2.metric(f"Totale Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
 
-        if len(anni_prov) >= 2:
-            anno_prev = max([a for a in anni_prov if a < anno_sel_prov], default=None)
-            if anno_prev:
-                prov_prev = provincia[provincia["anno"] == anno_prev]
-                if not prov_prev.empty:
-                    tot_pres_prev = int(prov_prev["presenze"].sum())
-                    diff = tot_pres - tot_pres_prev
-                    perc = (diff / tot_pres_prev) * 100 if tot_pres_prev != 0 else None
-                    st.metric(
-                        label=f"Variazione presenze {anno_prev} → {anno_sel_prov}",
-                        value=f"{diff:+,}",
-                        delta=f"{perc:.2f}%" if perc is not None else ""
-                    )
-
-        # Grafici Provincia
+        # Grafici – confronto tra anni
+        st.subheader("📊 Andamento mensile – Arrivi e Presenze (confronto anni)")
         col3, col4 = st.columns(2)
+
         with col3:
             fig_arrivi = px.line(
                 prov_filtrata,
                 x="mese",
                 y="arrivi",
+                color="anno",
                 markers=True,
                 title="Andamento Arrivi mensili",
-                labels={"arrivi": "Arrivi", "mese": "Mese"},
+                labels={"arrivi": "Arrivi", "mese": "Mese", "anno": "Anno"}
             )
+            fig_arrivi.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
             st.plotly_chart(fig_arrivi, use_container_width=True)
+
         with col4:
             fig_pres = px.line(
                 prov_filtrata,
                 x="mese",
                 y="presenze",
+                color="anno",
                 markers=True,
                 title="Andamento Presenze mensili",
-                labels={"presenze": "Presenze", "mese": "Mese"},
+                labels={"presenze": "Presenze", "mese": "Mese", "anno": "Anno"}
             )
+            fig_pres.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
             st.plotly_chart(fig_pres, use_container_width=True)
 
+        # Tabella riepilogo
         st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
         tabella_prov = prov_filtrata.pivot_table(
-            index="mese",
+            index=["mese"],
+            columns="anno",
             values=["arrivi", "presenze"],
             aggfunc="sum"
         ).round(0)
