@@ -198,41 +198,79 @@ if mostra_provincia:
         st.dataframe(tabella_prov.style.format(fmt, thousands="."))
 
 # ======================
-# 🧾 ESPORTAZIONE PDF
+# 📄 SEZIONE DOWNLOAD PDF
 # ======================
-st.markdown("---")
-st.header("📤 Esporta Report in PDF")
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import cm
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+import tempfile
+import io
 
-def genera_pdf(titolo, testo):
-    buffer = BytesIO()
-    c = canvas.Canvas(buffer, pagesize=A4)
-    c.setFont("Helvetica-Bold", 14)
-    c.drawString(2 * cm, 27 * cm, titolo)
-    c.setFont("Helvetica", 10)
-    text_object = c.beginText(2 * cm, 25.5 * cm)
-    for riga in testo.split("\n"):
-        text_object.textLine(riga)
-    c.drawText(text_object)
-    c.showPage()
-    c.save()
+st.sidebar.markdown("---")
+st.sidebar.header("📄 Esportazione Report")
+
+def genera_pdf(df_comuni, df_provincia, indicatori_text, tabella_html):
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+
+    # Titolo
+    elements.append(Paragraph("<b>Dashboard Turismo Veneto</b>", styles["Title"]))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    # Indicatori principali
+    elements.append(Paragraph("<b>Indicatori principali (Comuni)</b>", styles["Heading2"]))
+    for t in indicatori_text:
+        elements.append(Paragraph(t, styles["Normal"]))
+    elements.append(Spacer(1, 0.3 * cm))
+
+    # Tabella confronto
+    if tabella_html:
+        elements.append(Paragraph("<b>Confronto tra anni e mesi (Comuni)</b>", styles["Heading2"]))
+        elements.append(Paragraph(tabella_html, styles["Normal"]))
+        elements.append(Spacer(1, 0.3 * cm))
+
+    # Provincia Belluno
+    if df_provincia is not None and not df_provincia.empty:
+        elements.append(Paragraph("<b>Sezione Provincia di Belluno</b>", styles["Heading2"]))
+        tot_pres = df_provincia["Totale presenze"].sum()
+        tot_arr = df_provincia["Totale arrivi"].sum()
+        elements.append(Paragraph(f"Totale Presenze: {tot_pres:,.0f}".replace(",", "."), styles["Normal"]))
+        elements.append(Paragraph(f"Totale Arrivi: {tot_arr:,.0f}".replace(",", "."), styles["Normal"]))
+        elements.append(Spacer(1, 0.3 * cm))
+
+    elements.append(Spacer(1, 1 * cm))
+    elements.append(Paragraph("Report generato automaticamente da Streamlit.", styles["Italic"]))
+
+    doc.build(elements)
     buffer.seek(0)
     return buffer
 
-col1, col2, col3 = st.columns(3)
-with col1:
-    if st.button("📄 Esporta Dashboard completa"):
-        pdf = genera_pdf("Dashboard Turismo Veneto", "Report completo generato da Streamlit.")
-        st.download_button("⬇️ Scarica PDF completo", data=pdf, file_name="dashboard_turismo_veneto.pdf")
 
-with col2:
-    if st.button("📄 Esporta sezione Comuni"):
-        pdf = genera_pdf("Dati Comunali", "Sezione dati comunali esportata.")
-        st.download_button("⬇️ Scarica PDF Comuni", data=pdf, file_name="dati_comuni.pdf")
+# ---- Pulsanti download ----
+if st.sidebar.button("📥 Scarica Report Completo (PDF)"):
+    indicatori_text = [
+        f"{row['comune']} - {row['anno']}: {row['presenze']:,.0f}".replace(",", ".")
+        for _, row in df_filtered.groupby(["comune", "anno"])["presenze"].sum().reset_index().iterrows()
+    ]
 
-with col3:
-    if st.button("📄 Esporta sezione Provincia di Belluno"):
-        pdf = genera_pdf("Dati Provincia Belluno", "Sezione dati provinciali esportata.")
-        st.download_button("⬇️ Scarica PDF Provincia", data=pdf, file_name="dati_provincia.pdf")
+    # Convertiamo la tabella in HTML leggibile per il PDF
+    if 'tabella' in locals():
+        tabella_html = tabella.reset_index().to_html(index=False)
+    else:
+        tabella_html = ""
+
+    pdf_buffer = genera_pdf(df_filtered, data_provincia if 'data_provincia' in locals() else None, indicatori_text, tabella_html)
+
+    st.sidebar.download_button(
+        label="💾 Download PDF",
+        data=pdf_buffer,
+        file_name="report_turismo_veneto.pdf",
+        mime="application/pdf"
+    )
 
 # ======================
 # 🧾 FOOTER
