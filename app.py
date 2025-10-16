@@ -1,78 +1,110 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import tempfile
+import pdfkit
+import os
+
 from etl import load_data, load_provincia_belluno
-from io import BytesIO
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.pdfgen import canvas
 
 # ======================
-# ⚙️ CONFIGURAZIONE BASE
-# ======================
-st.set_page_config(page_title="Dashboard Turismo Veneto", layout="wide")
-st.title("📊 Dashboard Turismo Veneto")
-
-# ======================
-# 🔐 ACCESSO CON PASSWORD
+# 🔐 AUTENTICAZIONE
 # ======================
 password = st.text_input("Inserisci password", type="password")
 if password != "dolomiti":
     if password:
-        st.error("❌ Password errata. Riprova.")
+        st.error("❌ Password errata")
     st.stop()
-st.success("✅ Accesso consentito")
 
 # ======================
 # 📥 CARICAMENTO DATI
 # ======================
-st.sidebar.header("⚙️ Filtri principali – Dati Comunali")
-
-data = load_data("dolomiti-turismo-veneto/dati-mensili-per-comune")
-provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
+st.sidebar.header("⚙️ Filtri principali (Comuni)")
+data = load_data("dati-mensili-per-comune")
 
 if data.empty:
     st.error("❌ Nessun dato comunale caricato.")
     st.stop()
-else:
-    st.success(f"✅ Dati comunali caricati: {len(data):,} righe, {data['anno'].nunique()} anni, {data['comune'].nunique()} comuni.")
 
 # ======================
-# FILTRI COMUNALI
+# 📊 FILTRI COMUNALI
 # ======================
-anni = sorted(data["anno"].unique())
-comuni = sorted(data["comune"].unique())
-mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+anni = sorted(data["anno"].dropna().unique())
+comuni = sorted(data["comune"].dropna().unique())
+mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
+        "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
 
-anno_sel = st.sidebar.multiselect("Seleziona Anno (Comuni)", anni, default=anni)
-comune_sel = st.sidebar.multiselect("Seleziona Comune", comuni, default=[comuni[0]])
-mesi_sel = st.sidebar.multiselect("Seleziona Mese", mesi, default=mesi)
+anno_sel = st.sidebar.multiselect("Anno (Comuni)", anni, default=anni)
+comune_sel = st.sidebar.multiselect("Comune", comuni, default=[comuni[0]])
+mesi_sel = st.sidebar.multiselect("Mese", mesi, default=mesi)
 
+# Filtraggio
 df_filtered = data[
-    (data["anno"].isin(anno_sel)) &
-    (data["comune"].isin(comune_sel)) &
-    (data["mese"].isin(mesi_sel))
+    data["anno"].isin(anno_sel) &
+    data["comune"].isin(comune_sel) &
+    data["mese"].isin(mesi_sel)
 ]
 
 # ======================
-# 🔢 INDICATORI PRINCIPALI – COMUNI
+# 📈 INDICATORI PRINCIPALI - COMUNI
 # ======================
 st.header("📈 Indicatori principali – Comuni")
 
-if df_filtered.empty:
-    st.warning("Nessun dato disponibile per i filtri selezionati.")
+if not df_filtered.empty:
+    grouped = df_filtered.groupby(["comune", "anno"])["presenze"].sum().reset_index()
+    for comune in grouped["comune"].unique():
+        st.subheader(f"🏘️ {comune}")
+        sub_df = grouped[grouped["comune"] == comune]
+        for _, r in sub_df.iterrows():
+            st.metric(f"{int(r['anno'])}", f"{r['presenze']:,.0f}".replace(",", "."))
 else:
-    for comune in comune_sel:
-        st.subheader(f"🏙️ {comune}")
-        cols = st.columns(len(anno_sel))
-        for i, anno in enumerate(anno_sel):
-            tot_pres = int(df_filtered[(df_filtered["anno"] == anno) & (df_filtered["comune"] == comune)]["presenze"].sum())
-            cols[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
+    st.info("Nessun dato disponibile per i filtri selezionati.")
 
 # ======================
-# 📋 TABELLA CONFRONTO TRA ANNI E MESI (COMUNI)
+# 📊 ANDAMENTO MENSILE
 # ======================
-st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (Comuni)")
+st.subheader("📊 Andamento mensile (Comuni)")
+
+if not df_filtered.empty:
+    fig = px.line(
+        df_filtered,
+        x="mese",
+        y="presenze",
+        color="anno",
+        markers=True,
+        facet_row="comune"
+    )
+    fig.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi),
+                      legend_title_text="Anno")
+    st.plotly_chart(fig, use_container_width=True)
+
+# ======================
+# 📊 CONFRONTO TRA MESI E ANNI
+# ======================
+st.subheader("📆 Confronto tra mesi nei diversi anni (Comuni)")
+
+if not df_filtered.empty:
+    fig_bar = px.bar(
+        df_filtered,
+        x="mese",
+        y="presenze",
+        color="anno",
+        barmode="group",
+        facet_row="comune"
+    )
+    fig_bar.update_layout(
+        legend_title_text="Anno",
+        bargap=0.2,
+        bargroupgap=0.05,
+        xaxis_title="Mese",
+        yaxis_title="Presenze"
+    )
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+# ======================
+# 📋 CONFRONTO TRA ANNI E MESI – DIFFERENZE E VARIAZIONI
+# ======================
+st.subheader("📋 Confronto tra anni e mesi – Differenze e variazioni (Comuni)")
 
 if not df_filtered.empty and len(anno_sel) >= 1:
     tabella = (
@@ -92,187 +124,83 @@ if not df_filtered.empty and len(anno_sel) >= 1:
             tabella["Variazione %"] = (tabella["Differenza"] / tabella[anno_prev].replace(0, pd.NA)) * 100
 
         fmt = {col: "{:,.0f}".format for col in tabella.columns if isinstance(col, int)}
-        fmt.update({
-            "Differenza": "{:,.0f}".format,
-            "Variazione %": "{:.2f}%"
-        })
-
-        st.markdown(
-            f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come {anno_recent} − {anno_prev}."
-        )
+        fmt.update({"Differenza": "{:,.0f}".format, "Variazione %": "{:.2f}%"})
+        st.markdown(f"**Confronto tra {anno_recent} e {anno_prev}:** calcolato come {anno_recent} − {anno_prev}.")
         st.dataframe(tabella.style.format(fmt, thousands="."))
-
     else:
         fmt = {col: "{:,.0f}".format for col in tabella.columns if isinstance(col, int)}
         st.dataframe(tabella.style.format(fmt, thousands="."))
-else:
-    st.info("Seleziona almeno un anno e un comune per visualizzare la tabella comparativa.")
 
 # ======================
-# 📊 GRAFICO ANDAMENTO MENSILE (Comuni)
+# 📍 DATI PROVINCIA DI BELLUNO
 # ======================
-st.subheader("📊 Andamento mensile (Comuni)")
-if not df_filtered.empty:
-    fig = px.line(
-        df_filtered,
-        x="mese",
-        y="presenze",
-        color="anno",
-        markers=True,
-        facet_row="comune"
-    )
-    fig.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi), legend_title_text="Anno")
-    st.plotly_chart(fig, use_container_width=True)
+show_prov = st.sidebar.toggle("📊 Mostra dati provincia di Belluno")
 
-# ======================
-# 📊 CONFRONTO TRA MESI NEI DIVERSI ANNI (Comuni)
-# ======================
-st.subheader("📆 Confronto tra mesi nei diversi anni (Comuni)")
-if not df_filtered.empty:
-    fig_bar = px.bar(
-        df_filtered,
-        x="anno",
-        y="presenze",
-        color="mese",
-        barmode="group",
-        facet_row="comune"
-    )
-    fig_bar.update_layout(legend_title_text="Mese", bargap=0.2, bargroupgap=0.05, xaxis_title="Anno", yaxis_title="Presenze")
-    st.plotly_chart(fig_bar, use_container_width=True)
+if show_prov:
+    st.header("🏞 Dati Provincia di Belluno")
+    data_provincia = load_provincia_belluno("dati-mensili-per-comune/dati-provincia-annuali")
 
-# ======================
-# 🏔️ SEZIONE PROVINCIA DI BELLUNO
-# ======================
-st.sidebar.markdown("---")
-mostra_provincia = st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno")
+    if not data_provincia.empty:
+        anni_prov = sorted(data_provincia["anno"].unique())
+        anni_prov_sel = st.sidebar.multiselect("Anno (Provincia)", anni_prov, default=anni_prov)
+        df_prov = data_provincia[data_provincia["anno"].isin(anni_prov_sel)]
 
-if mostra_provincia:
-    st.sidebar.header("⚙️ Filtri – Provincia di Belluno")
+        # Grafico Arrivi
+        st.subheader("🚶 Andamento arrivi mensili – Provincia Belluno")
+        fig_arrivi = px.bar(
+            df_prov, x="Mese", y="Totale arrivi", color="anno", barmode="group"
+        )
+        st.plotly_chart(fig_arrivi, use_container_width=True)
 
-    if provincia.empty:
-        st.warning("⚠️ Nessun dato provinciale caricato.")
+        # Grafico Presenze
+        st.subheader("🛏 Andamento presenze mensili – Provincia Belluno")
+        fig_pres = px.bar(
+            df_prov, x="Mese", y="Totale presenze", color="anno", barmode="group"
+        )
+        st.plotly_chart(fig_pres, use_container_width=True)
     else:
-        anni_prov = sorted(provincia["anno"].unique())
-        anni_sel_prov = st.sidebar.multiselect("Seleziona Anno (Provincia)", anni_prov, default=[anni_prov[-1]])
-
-        st.markdown("---")
-        st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
-
-        prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)]
-
-        st.subheader("📈 Indicatori Provincia di Belluno")
-        cols_metric = st.columns(len(anni_sel_prov))
-        for i, anno in enumerate(anni_sel_prov):
-            prov_annuale = prov_filtrata[prov_filtrata["anno"] == anno]
-            tot_arrivi = int(prov_annuale["arrivi"].sum()) if not prov_annuale.empty else 0
-            tot_pres = int(prov_annuale["presenze"].sum()) if not prov_annuale.empty else 0
-            cols_metric[i].metric(f"Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
-            cols_metric[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
-
-        # Tabella riepilogo
-        st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
-        tabella_prov = prov_filtrata.pivot_table(
-            index="mese",
-            columns="anno",
-            values=["arrivi", "presenze"],
-            aggfunc="sum"
-        ).round(0)
-
-        if len(anni_sel_prov) == 2:
-            anni_sorted_prov = sorted(anni_sel_prov)
-            anno_prev_prov = anni_sorted_prov[0]
-            anno_recent_prov = anni_sorted_prov[1]
-            for metrica in ["arrivi", "presenze"]:
-                diff_col = (metrica, "Differenza")
-                pct_col = (metrica, "Variazione %")
-                tabella_prov[diff_col] = tabella_prov[(metrica, anno_recent_prov)] - tabella_prov[(metrica, anno_prev_prov)]
-                with pd.option_context('mode.use_inf_as_na', True):
-                    tabella_prov[pct_col] = (tabella_prov[diff_col] / tabella_prov[(metrica, anno_prev_prov)].replace(0, pd.NA)) * 100
-
-            st.markdown(
-                f"**Confronto tra {anno_recent_prov} e {anno_prev_prov}:** differenze e variazioni calcolate come {anno_recent_prov} − {anno_prev_prov}."
-            )
-
-        fmt = {col: "{:,.0f}".format for col in tabella_prov.columns if not (isinstance(col, tuple) and col[1] == 'Variazione %')}
-        fmt.update({col: "{:.2f}%" for col in tabella_prov.columns if isinstance(col, tuple) and col[1] == 'Variazione %'})
-        st.dataframe(tabella_prov.style.format(fmt, thousands="."))
+        st.warning("⚠️ Nessun dato provinciale trovato.")
 
 # ======================
-# 📄 SEZIONE DOWNLOAD PDF
+# 📄 ESPORTAZIONE REPORT PDF
 # ======================
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import cm
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib import colors
-import tempfile
-import io
-
 st.sidebar.markdown("---")
-st.sidebar.header("📄 Esportazione Report")
+st.sidebar.header("📄 Esporta Report in PDF")
 
-def genera_pdf(df_comuni, df_provincia, indicatori_text, tabella_html):
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=A4)
-    elements = []
-    styles = getSampleStyleSheet()
+def esporta_pdf(nome_file, sezioni_html):
+    html = "<h1>Report Turismo Veneto</h1>" + "".join(sezioni_html)
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".html") as tmp_html:
+        tmp_html.write(html.encode("utf-8"))
+        tmp_html.flush()
+        pdf_path = tmp_html.name.replace(".html", ".pdf")
+        try:
+            pdfkit.from_file(tmp_html.name, pdf_path)
+            with open(pdf_path, "rb") as f:
+                st.sidebar.download_button(
+                    label=f"💾 Scarica {nome_file}",
+                    data=f,
+                    file_name=nome_file,
+                    mime="application/pdf"
+                )
+        except Exception as e:
+            st.error(f"Errore nella generazione PDF: {e}")
 
-    # Titolo
-    elements.append(Paragraph("<b>Dashboard Turismo Veneto</b>", styles["Title"]))
-    elements.append(Spacer(1, 0.3 * cm))
-
-    # Indicatori principali
-    elements.append(Paragraph("<b>Indicatori principali (Comuni)</b>", styles["Heading2"]))
-    for t in indicatori_text:
-        elements.append(Paragraph(t, styles["Normal"]))
-    elements.append(Spacer(1, 0.3 * cm))
-
-    # Tabella confronto
-    if tabella_html:
-        elements.append(Paragraph("<b>Confronto tra anni e mesi (Comuni)</b>", styles["Heading2"]))
-        elements.append(Paragraph(tabella_html, styles["Normal"]))
-        elements.append(Spacer(1, 0.3 * cm))
-
-    # Provincia Belluno
-    if df_provincia is not None and not df_provincia.empty:
-        elements.append(Paragraph("<b>Sezione Provincia di Belluno</b>", styles["Heading2"]))
-        tot_pres = df_provincia["Totale presenze"].sum()
-        tot_arr = df_provincia["Totale arrivi"].sum()
-        elements.append(Paragraph(f"Totale Presenze: {tot_pres:,.0f}".replace(",", "."), styles["Normal"]))
-        elements.append(Paragraph(f"Totale Arrivi: {tot_arr:,.0f}".replace(",", "."), styles["Normal"]))
-        elements.append(Spacer(1, 0.3 * cm))
-
-    elements.append(Spacer(1, 1 * cm))
-    elements.append(Paragraph("Report generato automaticamente da Streamlit.", styles["Italic"]))
-
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
-
-
-# ---- Pulsanti download ----
-if st.sidebar.button("📥 Scarica Report Completo (PDF)"):
-    indicatori_text = [
-        f"{row['comune']} - {row['anno']}: {row['presenze']:,.0f}".replace(",", ".")
-        for _, row in df_filtered.groupby(["comune", "anno"])["presenze"].sum().reset_index().iterrows()
+# ---- Pulsanti ----
+if st.sidebar.button("📘 Report completo"):
+    sezioni = [
+        "<h2>Indicatori Comuni</h2>",
+        df_filtered.to_html(index=False),
     ]
+    if show_prov and 'data_provincia' in locals():
+        sezioni.append("<h2>Dati Provincia Belluno</h2>")
+        sezioni.append(data_provincia.to_html(index=False))
+    esporta_pdf("report_turismo_completo.pdf", sezioni)
 
-    # Convertiamo la tabella in HTML leggibile per il PDF
-    if 'tabella' in locals():
-        tabella_html = tabella.reset_index().to_html(index=False)
-    else:
-        tabella_html = ""
+if st.sidebar.button("🏘 Solo Comuni"):
+    sezioni = ["<h2>Dati Comuni</h2>", df_filtered.to_html(index=False)]
+    esporta_pdf("report_comuni.pdf", sezioni)
 
-    pdf_buffer = genera_pdf(df_filtered, data_provincia if 'data_provincia' in locals() else None, indicatori_text, tabella_html)
+if show_prov and st.sidebar.button("🏞 Solo Provincia Belluno"):
+    sezioni = ["<h2>Dati Provincia Belluno</h2>", data_provincia.to_html(index=False)]
+    esporta_pdf("report_provincia_belluno.pdf", sezioni)
 
-    st.sidebar.download_button(
-        label="💾 Download PDF",
-        data=pdf_buffer,
-        file_name="report_turismo_veneto.pdf",
-        mime="application/pdf"
-    )
-
-# ======================
-# 🧾 FOOTER
-# ======================
-st.caption("© 2025 Dashboard Fondazione D.M.O. Dolomiti Bellunesi - Per uso interno - Tutti i diritti riservati.")
