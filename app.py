@@ -71,7 +71,6 @@ else:
 st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (Comuni)")
 
 if not df_filtered.empty and len(anno_sel) >= 1:
-    # Pivot: Comune × Mese × Anno
     tabella = (
         df_filtered.groupby(["anno", "comune", "mese"])["presenze"]
         .sum()
@@ -79,30 +78,24 @@ if not df_filtered.empty and len(anno_sel) >= 1:
         .pivot_table(index=["comune", "mese"], columns="anno", values="presenze", fill_value=0)
     )
 
-    # Se sono selezionati esattamente 2 anni, calcola differenza e variazione %
     if len(anno_sel) == 2:
         anni_sorted = sorted(anno_sel)
-        anno_prev = anni_sorted[0]     # meno recente (es. 2023)
-        anno_recent = anni_sorted[1]   # più recente (es. 2024)
+        anno_prev = anni_sorted[0]
+        anno_recent = anni_sorted[1]
 
         tabella["Differenza"] = tabella[anno_recent] - tabella[anno_prev]
         with pd.option_context('mode.use_inf_as_na', True):
             tabella["Variazione %"] = (tabella["Differenza"] / tabella[anno_prev].replace(0, pd.NA)) * 100
 
-        # Formattazione
         fmt = {col: "{:,.0f}".format for col in tabella.columns if isinstance(col, int)}
         fmt.update({
             "Differenza": "{:,.0f}".format,
             "Variazione %": "{:.2f}%"
         })
 
-        st.markdown(
-            f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come {anno_recent} − {anno_prev}."
-        )
+        st.markdown(f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come {anno_recent} − {anno_prev}.")
         st.dataframe(tabella.style.format(fmt, thousands="."))
-
     else:
-        # Selezionati più o meno di 2 anni → solo i dati base, formattati
         fmt = {col: "{:,.0f}".format for col in tabella.columns if isinstance(col, int)}
         st.dataframe(tabella.style.format(fmt, thousands="."))
 else:
@@ -169,46 +162,73 @@ if mostra_provincia:
         st.markdown("---")
         st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
 
-        prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)]
+        prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)].copy()
 
-        st.subheader("📈 Indicatori Provincia di Belluno")
-        cols_metric = st.columns(len(anni_sel_prov))
-        for i, anno in enumerate(anni_sel_prov):
-            prov_annuale = prov_filtrata[prov_filtrata["anno"] == anno]
-            tot_arrivi = int(prov_annuale["arrivi"].sum()) if not prov_annuale.empty else 0
-            tot_pres = int(prov_annuale["presenze"].sum()) if not prov_annuale.empty else 0
-            cols_metric[i].metric(f"Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
-            cols_metric[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
+        if prov_filtrata.empty:
+            st.warning("❌ Nessun dato provinciale per gli anni selezionati.")
+        else:
+            # Normalizzazione mese
+            prov_filtrata["mese"] = prov_filtrata["mese"].str.strip().str[:3].str.capitalize()
+            prov_filtrata["mese"] = pd.Categorical(prov_filtrata["mese"], categories=mesi, ordered=True)
 
-        # Tabella riepilogo
-        st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
-        tabella_prov = prov_filtrata.pivot_table(
-            index="mese",
-            columns="anno",
-            values=["arrivi", "presenze"],
-            aggfunc="sum"
-        ).round(0)
-
-        if len(anni_sel_prov) == 2:
-            anni_sorted_prov = sorted(anni_sel_prov)
-            anno_prev_prov = anni_sorted_prov[0]
-            anno_recent_prov = anni_sorted_prov[1]
-            for metrica in ["arrivi", "presenze"]:
-                diff_col = (metrica, "Differenza")
-                pct_col = (metrica, "Variazione %")
-                tabella_prov[diff_col] = tabella_prov[(metrica, anno_recent_prov)] - tabella_prov[(metrica, anno_prev_prov)]
-                with pd.option_context('mode.use_inf_as_na', True):
-                    tabella_prov[pct_col] = (tabella_prov[diff_col] / tabella_prov[(metrica, anno_prev_prov)].replace(0, pd.NA)) * 100
-
-            st.markdown(
-                f"**Confronto tra {anno_recent_prov} e {anno_prev_prov}:** differenze e variazioni calcolate come {anno_recent_prov} − {anno_prev_prov}."
+            # === GRAFICO ARRIVI ===
+            st.subheader("🚶 Andamento mensile – Arrivi")
+            fig_arr = px.bar(
+                prov_filtrata,
+                x="mese",
+                y="arrivi",
+                color="anno",
+                barmode="group",
+                title="Arrivi mensili per anno – Provincia Belluno",
+                labels={"arrivi": "Arrivi", "mese": "Mese", "anno": "Anno"}
             )
+            fig_arr.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
+            st.plotly_chart(fig_arr, use_container_width=True)
 
-        fmt = {col: "{:,.0f}".format for col in tabella_prov.columns if not (isinstance(col, tuple) and col[1] == 'Variazione %')}
-        fmt.update({col: "{:.2f}%" for col in tabella_prov.columns if isinstance(col, tuple) and col[1] == 'Variazione %'})
-        st.dataframe(tabella_prov.style.format(fmt, thousands="."))
+            # === GRAFICO PRESENZE ===
+            st.subheader("🛏 Andamento mensile – Presenze")
+            fig_pres = px.bar(
+                prov_filtrata,
+                x="mese",
+                y="presenze",
+                color="anno",
+                barmode="group",
+                title="Presenze mensili per anno – Provincia Belluno",
+                labels={"presenze": "Presenze", "mese": "Mese", "anno": "Anno"}
+            )
+            fig_pres.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
+            st.plotly_chart(fig_pres, use_container_width=True)
+
+            # === TABELLA RIEPILOGO ===
+            st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
+            tabella_prov = prov_filtrata.pivot_table(
+                index="mese",
+                columns="anno",
+                values=["arrivi", "presenze"],
+                aggfunc="sum"
+            ).round(0)
+
+            if len(anni_sel_prov) == 2:
+                anni_sorted_prov = sorted(anni_sel_prov)
+                anno_prev_prov = anni_sorted_prov[0]
+                anno_recent_prov = anni_sorted_prov[1]
+                for metrica in ["arrivi", "presenze"]:
+                    diff_col = (metrica, "Differenza")
+                    pct_col = (metrica, "Variazione %")
+                    tabella_prov[diff_col] = tabella_prov[(metrica, anno_recent_prov)] - tabella_prov[(metrica, anno_prev_prov)]
+                    with pd.option_context('mode.use_inf_as_na', True):
+                        tabella_prov[pct_col] = (tabella_prov[diff_col] / tabella_prov[(metrica, anno_prev_prov)].replace(0, pd.NA)) * 100
+
+                st.markdown(
+                    f"**Confronto tra {anno_recent_prov} e {anno_prev_prov}:** differenze e variazioni calcolate come {anno_recent_prov} − {anno_prev_prov}."
+                )
+
+            fmt = {col: "{:,.0f}".format for col in tabella_prov.columns if not (isinstance(col, tuple) and col[1] == 'Variazione %')}
+            fmt.update({col: "{:.2f}%" for col in tabella_prov.columns if isinstance(col, tuple) and col[1] == 'Variazione %'})
+            st.dataframe(tabella_prov.style.format(fmt, thousands="."))
 
 # ======================
 # 🧾 FOOTER
 # ======================
 st.caption("© 2025 Dashboard Fondazione D.M.O. Dolomiti Bellunesi - Per uso interno - Tutti i diritti riservati.")
+
