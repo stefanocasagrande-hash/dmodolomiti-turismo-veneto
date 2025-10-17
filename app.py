@@ -167,9 +167,21 @@ if mostra_provincia:
         if prov_filtrata.empty:
             st.warning("❌ Nessun dato provinciale per gli anni selezionati.")
         else:
-            # Normalizzazione mese
+            # Normalizzazione mesi
             prov_filtrata["mese"] = prov_filtrata["mese"].str.strip().str[:3].str.capitalize()
-            prov_filtrata["mese"] = pd.Categorical(prov_filtrata["mese"], categories=mesi, ordered=True)
+            mesi_ord = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+            prov_filtrata["mese"] = pd.Categorical(prov_filtrata["mese"], categories=mesi_ord, ordered=True)
+
+            # === INDICATORI GENERALI PER ANNO ===
+            st.subheader("📈 Indicatori Provincia di Belluno")
+            cols_metric = st.columns(len(anni_sel_prov))
+            for i, anno in enumerate(anni_sel_prov):
+                prov_annuale = prov_filtrata[prov_filtrata["anno"] == anno]
+                tot_arrivi = int(prov_annuale["arrivi"].sum()) if not prov_annuale.empty else 0
+                tot_pres = int(prov_annuale["presenze"].sum()) if not prov_annuale.empty else 0
+                with cols_metric[i]:
+                    st.metric(f"Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
+                    st.metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
 
             # === GRAFICO ARRIVI A LINEE ===
             st.subheader("🚶 Andamento mensile – Arrivi")
@@ -182,7 +194,7 @@ if mostra_provincia:
                 title="Arrivi mensili per anno – Provincia Belluno",
                 labels={"arrivi": "Arrivi", "mese": "Mese", "anno": "Anno"}
             )
-            fig_arr.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
+            fig_arr.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi_ord))
             st.plotly_chart(fig_arr, use_container_width=True)
 
             # === GRAFICO PRESENZE A LINEE ===
@@ -196,7 +208,7 @@ if mostra_provincia:
                 title="Presenze mensili per anno – Provincia Belluno",
                 labels={"presenze": "Presenze", "mese": "Mese", "anno": "Anno"}
             )
-            fig_pres.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
+            fig_pres.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi_ord))
             st.plotly_chart(fig_pres, use_container_width=True)
 
             # === TABELLA RIEPILOGO PROVINCIA ===
@@ -208,6 +220,7 @@ if mostra_provincia:
                 aggfunc="sum"
             ).round(0)
 
+            # Calcola differenze solo se ci sono due anni
             if len(anni_sel_prov) == 2:
                 anni_sorted_prov = sorted(anni_sel_prov)
                 anno_prev_prov = anni_sorted_prov[0]
@@ -223,13 +236,14 @@ if mostra_provincia:
                     f"**Confronto tra {anno_recent_prov} e {anno_prev_prov}:** differenze e variazioni calcolate come {anno_recent_prov} − {anno_prev_prov}."
                 )
 
+            # Formattazione tabella
             fmt = {col: "{:,.0f}".format for col in tabella_prov.columns if not (isinstance(col, tuple) and col[1] == 'Variazione %')}
             fmt.update({col: "{:.2f}%" for col in tabella_prov.columns if isinstance(col, tuple) and col[1] == 'Variazione %'})
             st.dataframe(tabella_prov.style.format(fmt, thousands="."))
-
 
 # ======================
 # 🧾 FOOTER
 # ======================
 st.caption("© 2025 Dashboard Fondazione D.M.O. Dolomiti Bellunesi - Per uso interno - Tutti i diritti riservati.")
+
 
