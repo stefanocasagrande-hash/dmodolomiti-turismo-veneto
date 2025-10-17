@@ -8,7 +8,7 @@ from etl import load_data
 # CONFIGURAZIONE BASE
 # ---------------------------------------------------------
 st.set_page_config(page_title="Presenze Turistiche Estero", layout="wide", page_icon="🌍")
-st.title("🌍 Presenze Turistiche Estero – Analisi per Paese di Provenienza")
+st.title("🌍 Presenze Turistiche Estero - STL DOLOMITI – Analisi per Paese di Provenienza")
 
 # ---------------------------------------------------------
 # INDIVIDUA LA CARTELLA DATI
