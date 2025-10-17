@@ -171,35 +171,35 @@ if mostra_provincia:
             prov_filtrata["mese"] = prov_filtrata["mese"].str.strip().str[:3].str.capitalize()
             prov_filtrata["mese"] = pd.Categorical(prov_filtrata["mese"], categories=mesi, ordered=True)
 
-            # === GRAFICO ARRIVI ===
+            # === GRAFICO ARRIVI A LINEE ===
             st.subheader("🚶 Andamento mensile – Arrivi")
-            fig_arr = px.bar(
+            fig_arr = px.line(
                 prov_filtrata,
                 x="mese",
                 y="arrivi",
                 color="anno",
-                barmode="group",
+                markers=True,
                 title="Arrivi mensili per anno – Provincia Belluno",
                 labels={"arrivi": "Arrivi", "mese": "Mese", "anno": "Anno"}
             )
             fig_arr.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
             st.plotly_chart(fig_arr, use_container_width=True)
 
-            # === GRAFICO PRESENZE ===
+            # === GRAFICO PRESENZE A LINEE ===
             st.subheader("🛏 Andamento mensile – Presenze")
-            fig_pres = px.bar(
+            fig_pres = px.line(
                 prov_filtrata,
                 x="mese",
                 y="presenze",
                 color="anno",
-                barmode="group",
+                markers=True,
                 title="Presenze mensili per anno – Provincia Belluno",
                 labels={"presenze": "Presenze", "mese": "Mese", "anno": "Anno"}
             )
             fig_pres.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
             st.plotly_chart(fig_pres, use_container_width=True)
 
-            # === TABELLA RIEPILOGO ===
+            # === TABELLA RIEPILOGO PROVINCIA ===
             st.subheader("📋 Riepilogo mensile – Provincia di Belluno")
             tabella_prov = prov_filtrata.pivot_table(
                 index="mese",
@@ -226,6 +226,7 @@ if mostra_provincia:
             fmt = {col: "{:,.0f}".format for col in tabella_prov.columns if not (isinstance(col, tuple) and col[1] == 'Variazione %')}
             fmt.update({col: "{:.2f}%" for col in tabella_prov.columns if isinstance(col, tuple) and col[1] == 'Variazione %'})
             st.dataframe(tabella_prov.style.format(fmt, thousands="."))
+
 
 # ======================
 # 🧾 FOOTER
