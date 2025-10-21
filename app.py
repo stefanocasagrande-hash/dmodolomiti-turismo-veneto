@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from etl import load_data, load_provincia_belluno, load_stl_data
+from etl import load_dati_comunali, load_provincia_belluno, load_stl_data
 
 # ======================
 # ⚙️ CONFIGURAZIONE BASE
@@ -24,8 +24,7 @@ st.success("✅ Accesso consentito")
 # ======================
 st.sidebar.header("⚙️ Filtri principali – Dati Comunali")
 
-# Percorsi corretti delle cartelle
-data = load_data("dolomiti-turismo-veneto/dati-mensili-per-comune")
+data = load_dati_comunali("dolomiti-turismo-veneto/dati-mensili-per-comune")
 provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
 
 if data.empty:
@@ -93,9 +92,7 @@ if not df_filtered.empty and len(anno_sel) >= 1:
             "Variazione %": "{:.2f}%"
         })
 
-        st.markdown(
-            f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come {anno_recent} − {anno_prev}."
-        )
+        st.markdown(f"**Confronto tra {anno_recent} e {anno_prev}** – differenze e variazioni calcolate come {anno_recent} − {anno_prev}.")
         st.dataframe(tabella.style.format(fmt, thousands="."))
 
     else:
@@ -105,23 +102,13 @@ else:
     st.info("Seleziona almeno un anno e un comune per visualizzare la tabella comparativa.")
 
 # ======================
-# 📊 GRAFICO ANDAMENTO MENSILE (Comuni)
+# 📊 ANDAMENTO MENSILE (Comuni)
 # ======================
 st.subheader("📊 Andamento mensile (Comuni)")
 
 if not df_filtered.empty:
-    fig = px.line(
-        df_filtered,
-        x="mese",
-        y="presenze",
-        color="anno",
-        markers=True,
-        facet_row="comune"
-    )
-    fig.update_layout(
-        xaxis=dict(categoryorder="array", categoryarray=mesi),
-        legend_title_text="Anno"
-    )
+    fig = px.line(df_filtered, x="mese", y="presenze", color="anno", markers=True, facet_row="comune")
+    fig.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi), legend_title_text="Anno")
     st.plotly_chart(fig, use_container_width=True)
 
 # ======================
@@ -130,21 +117,8 @@ if not df_filtered.empty:
 st.subheader("📆 Confronto tra mesi nei diversi anni (Comuni)")
 
 if not df_filtered.empty:
-    fig_bar = px.bar(
-        df_filtered,
-        x="anno",
-        y="presenze",
-        color="mese",
-        barmode="group",
-        facet_row="comune"
-    )
-    fig_bar.update_layout(
-        legend_title_text="Mese",
-        bargap=0.2,
-        bargroupgap=0.05,
-        xaxis_title="Anno",
-        yaxis_title="Presenze"
-    )
+    fig_bar = px.bar(df_filtered, x="anno", y="presenze", color="mese", barmode="group", facet_row="comune")
+    fig_bar.update_layout(legend_title_text="Mese", bargap=0.2, bargroupgap=0.05, xaxis_title="Anno", yaxis_title="Presenze")
     st.plotly_chart(fig_bar, use_container_width=True)
 
 # ======================
@@ -171,8 +145,8 @@ if mostra_provincia:
         cols_metric = st.columns(len(anni_sel_prov))
         for i, anno in enumerate(anni_sel_prov):
             prov_annuale = prov_filtrata[prov_filtrata["anno"] == anno]
-            tot_arrivi = int(prov_annuale["arrivi"].sum()) if not prov_annuale.empty else 0
-            tot_pres = int(prov_annuale["presenze"].sum()) if not prov_annuale.empty else 0
+            tot_arrivi = int(prov_annuale["arrivi"].sum())
+            tot_pres = int(prov_annuale["presenze"].sum())
             cols_metric[i].metric(f"Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
             cols_metric[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
 
@@ -198,12 +172,8 @@ if mostra_stl:
     st.sidebar.header("⚙️ Filtri – Dati STL")
     stl_tipo = st.sidebar.radio("Seleziona STL", ["Dolomiti", "Belluno"])
 
-    if stl_tipo == "Dolomiti":
-        df_stl = stl_dolomiti.copy()
-        titolo = "🏔️ STL Dolomiti – Arrivi e Presenze mensili"
-    else:
-        df_stl = stl_belluno.copy()
-        titolo = "🏞️ STL Belluno – Arrivi e Presenze mensili"
+    df_stl = stl_dolomiti if stl_tipo == "Dolomiti" else stl_belluno
+    titolo = f"🏔️ STL {stl_tipo} – Arrivi e Presenze mensili"
 
     if df_stl.empty:
         st.warning(f"⚠️ Nessun dato disponibile per {stl_tipo}.")
