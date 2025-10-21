@@ -242,6 +242,56 @@ if mostra_provincia:
             st.dataframe(tabella_prov.style.format(fmt, thousands="."))
 
 # ======================
+# 🏔️ SEZIONE STL (Sistemi Turistici Locali)
+# ======================
+st.sidebar.markdown("---")
+mostra_stl = st.sidebar.checkbox("🏞️ Mostra dati STL – Arrivi e Presenze")
+
+if mostra_stl:
+    stl_dolomiti, stl_belluno = load_stl_data("dmodolomiti-turismo-veneto/stl-presenze-arrivi")
+
+    st.sidebar.header("⚙️ Filtri – Dati STL")
+    stl_tipo = st.sidebar.radio("Seleziona STL", ["Dolomiti", "Belluno"])
+
+    if stl_tipo == "Dolomiti":
+        df_stl = stl_dolomiti.copy()
+        titolo = "🏔️ STL Dolomiti – Arrivi e Presenze mensili"
+    else:
+        df_stl = stl_belluno.copy()
+        titolo = "🏞️ STL Belluno – Arrivi e Presenze mensili"
+
+    if df_stl.empty:
+        st.warning(f"⚠️ Nessun dato disponibile per {stl_tipo}.")
+    else:
+        st.markdown("---")
+        st.header(titolo)
+
+        anni_stl = sorted(df_stl["anno"].unique())
+        anni_sel_stl = st.sidebar.multiselect("Seleziona Anno (STL)", anni_stl, default=[anni_stl[-1]])
+        df_stl_filtrata = df_stl[df_stl["anno"].isin(anni_sel_stl)]
+
+        # Indicatori principali
+        st.subheader("📈 Indicatori principali (STL)")
+        cols_stl = st.columns(len(anni_sel_stl))
+        for i, anno in enumerate(anni_sel_stl):
+            df_anno = df_stl_filtrata[df_stl_filtrata["anno"] == anno]
+            tot_arrivi = int(df_anno["totale_arrivi"].sum())
+            tot_pres = int(df_anno["totale_presenze"].sum())
+            cols_stl[i].metric(f"Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
+            cols_stl[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
+
+        # Grafici lineari per confronto anni
+        st.subheader("📊 Andamento Arrivi mensili (STL)")
+        fig_arr = px.line(df_stl_filtrata, x="mese", y="totale_arrivi", color="anno", markers=True)
+        fig_arr.update_layout(xaxis_title="Mese", yaxis_title="Arrivi", legend_title="Anno")
+        st.plotly_chart(fig_arr, use_container_width=True)
+
+        st.subheader("📊 Andamento Presenze mensili (STL)")
+        fig_pres = px.line(df_stl_filtrata, x="mese", y="totale_presenze", color="anno", markers=True)
+        fig_pres.update_layout(xaxis_title="Mese", yaxis_title="Presenze", legend_title="Anno")
+        st.plotly_chart(fig_pres, use_container_width=True)
+
+# ======================
 # 🧾 FOOTER
 # ======================
 st.caption("© 2025 Dashboard Fondazione D.M.O. Dolomiti Bellunesi - Per uso interno - Tutti i diritti riservati.")
