@@ -2,9 +2,9 @@ import os
 import pandas as pd
 
 # =========================
-# 1️⃣ CARICAMENTO DATI COMUNALI
+# 1️⃣ DATI COMUNALI
 # =========================
-def load_data(data_folder="dmodolomiti-turismo-veneto/dati-mensili-per-comune"):
+def load_dati_comunali(data_folder="dolomiti-turismo-veneto/dati-mensili-per-comune"):
     """
     Carica tutti i file con dati mensili per Comune (es. 2023, 2024, ecc.)
     e li combina in un unico DataFrame.
@@ -18,48 +18,46 @@ def load_data(data_folder="dmodolomiti-turismo-veneto/dati-mensili-per-comune"):
         return pd.DataFrame()
 
     for file in os.listdir(data_folder):
-        if file.endswith(".txt"):
-            path = os.path.join(data_folder, file)
-            try:
-                df = pd.read_csv(path, sep=";", encoding="utf-8")
-            except UnicodeDecodeError:
-                df = pd.read_csv(path, sep=";", encoding="latin1")
+        if not file.endswith(".txt"):
+            continue
+        path = os.path.join(data_folder, file)
+        try:
+            df = pd.read_csv(path, sep=";", encoding="utf-8")
+        except UnicodeDecodeError:
+            df = pd.read_csv(path, sep=";", encoding="latin1")
 
-            # Pulizia colonne
-            df.columns = [c.strip().lower() for c in df.columns]
+        df.columns = [c.strip().lower() for c in df.columns]
+        year = "".join([c for c in file if c.isdigit()])
+        df["anno"] = int(year) if year else None
 
-            # Determina anno dal nome file
-            year = "".join([c for c in file if c.isdigit()])
-            df["anno"] = int(year) if year else None
+        if "comune" not in df.columns:
+            df.rename(columns={"denominazione_comune": "comune"}, inplace=True)
+        if "presenze" not in df.columns:
+            continue
 
-            # Normalizza colonne
-            if "comune" not in df.columns:
-                df.rename(columns={"denominazione_comune": "comune"}, inplace=True)
-            if "presenze" not in df.columns:
-                continue
+        if "mese" in df.columns:
+            df["mese"] = df["mese"].astype(str).str.strip().str[:3].str.capitalize()
+            df["mese"] = pd.Categorical(df["mese"], categories=ordine_mesi, ordered=True)
+        else:
+            continue
 
-            # Normalizza mese
-            if "mese" in df.columns:
-                df["mese"] = df["mese"].str.strip().str[:3].str.capitalize()
-                df["mese"] = pd.Categorical(df["mese"], categories=ordine_mesi, ordered=True)
-            else:
-                continue
-
-            df = df.dropna(subset=["comune", "presenze"])
-            frames.append(df)
+        df = df.dropna(subset=["comune", "presenze"])
+        frames.append(df)
 
     if not frames:
+        print(f"⚠️ Nessun file valido in {data_folder}")
         return pd.DataFrame()
 
     data = pd.concat(frames, ignore_index=True)
     data = data.sort_values(["anno", "mese", "comune"])
+    print(f"✅ Dati comunali caricati: {len(data)} righe, {data['anno'].nunique()} anni, {data['comune'].nunique()} comuni.")
     return data
 
 
 # =========================
-# 2️⃣ CARICAMENTO DATI PROVINCIALI
+# 2️⃣ DATI PROVINCIALI (BELLUNO)
 # =========================
-def load_provincia_belluno(data_folder="dmodolomiti-turismo-veneto/dati-provincia-annuali"):
+def load_provincia_belluno(data_folder="dolomiti-turismo-veneto/dati-provincia-annuali"):
     frames = []
     ordine_mesi = [
         "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno",
@@ -98,16 +96,18 @@ def load_provincia_belluno(data_folder="dmodolomiti-turismo-veneto/dati-provinci
         frames.append(df)
 
     if not frames:
+        print(f"⚠️ Nessun file valido in {data_folder}")
         return pd.DataFrame()
 
     data = pd.concat(frames, ignore_index=True)
+    print(f"✅ Dati provinciali caricati: {len(data)} righe, {data['anno'].nunique()} anni.")
     return data
 
 
 # =========================
-# 3️⃣ CARICAMENTO DATI STL (Dolomiti e Belluno)
+# 3️⃣ DATI STL (Dolomiti e Belluno)
 # =========================
-def load_stl_data(base_folder="dmodolomiti-turismo-veneto/stl-presenze-arrivi"):
+def load_stl_data(base_folder="dolomiti-turismo-veneto/stl-presenze-arrivi"):
     """
     Carica tutti i file STL Dolomiti e STL Belluno e restituisce due DataFrame.
     """
@@ -140,9 +140,12 @@ def load_stl_data(base_folder="dmodolomiti-turismo-veneto/stl-presenze-arrivi"):
             frames.append(df)
 
         if not frames:
+            print(f"⚠️ Nessun file valido in {path_dir}")
             return pd.DataFrame()
 
-        return pd.concat(frames, ignore_index=True)
+        data = pd.concat(frames, ignore_index=True)
+        print(f"✅ Dati STL {subfolder} caricati: {len(data)} righe, {data['anno'].nunique()} anni.")
+        return data
 
     stl_dolomiti = _load_stl_subfolder("stl-dolomiti")
     stl_belluno = _load_stl_subfolder("stl-belluno")
