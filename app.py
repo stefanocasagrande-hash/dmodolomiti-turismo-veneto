@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from etl import load_data, load_provincia_belluno
+from etl import load_data, load_provincia_belluno, load_stl_data
 
 # ======================
 # ⚙️ CONFIGURAZIONE BASE
