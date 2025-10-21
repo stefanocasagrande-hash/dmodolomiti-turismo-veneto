@@ -6,53 +6,88 @@ import pandas as pd
 # =========================
 def load_dati_comunali(data_folder="dolomiti-turismo-veneto/dati-mensili-per-comune"):
     """
-    Carica tutti i file con dati mensili per Comune (es. 2023, 2024, ecc.)
-    e li combina in un unico DataFrame.
+    Carica i file comunali (es. turismo-per-mese-comune-2024-presenze.txt)
+    e li trasforma in un unico DataFrame normalizzato in formato lungo.
     """
+    import os
+    import pandas as pd
+
     frames = []
     ordine_mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
                    "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
 
     if not os.path.exists(data_folder):
-        print(f"⚠️ Cartella non trovata: {data_folder}")
+        print(f"❌ Cartella non trovata: {data_folder}")
         return pd.DataFrame()
 
     for file in os.listdir(data_folder):
         if not file.endswith(".txt"):
             continue
+
         path = os.path.join(data_folder, file)
+        if os.path.getsize(path) == 0:
+            print(f"⚠️ File vuoto saltato: {file}")
+            continue
+
         try:
             df = pd.read_csv(path, sep=";", encoding="utf-8")
         except UnicodeDecodeError:
             df = pd.read_csv(path, sep=";", encoding="latin1")
+        except Exception as e:
+            print(f"⚠️ Errore lettura {file}: {e}")
+            continue
 
-        df.columns = [c.strip().lower() for c in df.columns]
+        # Normalizza intestazioni
+        df.columns = [c.strip() for c in df.columns]
+
+        # Estrai anno dal nome file
         year = "".join([c for c in file if c.isdigit()])
         df["anno"] = int(year) if year else None
 
-        if "comune" not in df.columns:
-            df.rename(columns={"denominazione_comune": "comune"}, inplace=True)
-        if "presenze" not in df.columns:
+        # Colonna Comune
+        comune_col = None
+        for c in df.columns:
+            if "comune" in c.lower():
+                comune_col = c
+                break
+        if not comune_col:
+            print(f"⚠️ Nessuna colonna 'comune' trovata in {file}")
             continue
 
-        if "mese" in df.columns:
-            df["mese"] = df["mese"].astype(str).str.strip().str[:3].str.capitalize()
-            df["mese"] = pd.Categorical(df["mese"], categories=ordine_mesi, ordered=True)
-        else:
+        df.rename(columns={comune_col: "comune"}, inplace=True)
+
+        # Colonne mese (tipo 'Gen Presenze', 'Feb Presenze', ecc.)
+        month_cols = [c for c in df.columns if any(m in c for m in ordine_mesi)]
+        if not month_cols:
+            print(f"⚠️ Nessuna colonna mese trovata in {file}")
             continue
 
-        df = df.dropna(subset=["comune", "presenze"])
-        frames.append(df)
+        # Trasformazione in formato lungo
+        df_long = df.melt(
+            id_vars=["anno", "comune"],
+            value_vars=month_cols,
+            var_name="mese",
+            value_name="presenze"
+        )
+
+        # Pulisci nome mese (primi 3 caratteri)
+        df_long["mese"] = df_long["mese"].str.extract(r"(^\w{3})")[0]
+        df_long["mese"] = df_long["mese"].str.capitalize()
+        df_long["mese"] = pd.Categorical(df_long["mese"], categories=ordine_mesi, ordered=True)
+
+        # Converti a numerico
+        df_long["presenze"] = pd.to_numeric(df_long["presenze"], errors="coerce").fillna(0)
+
+        frames.append(df_long)
 
     if not frames:
-        print(f"⚠️ Nessun file valido in {data_folder}")
+        print("⚠️ Nessun file comunale valido caricato.")
         return pd.DataFrame()
 
     data = pd.concat(frames, ignore_index=True)
     data = data.sort_values(["anno", "mese", "comune"])
-    print(f"✅ Dati comunali caricati: {len(data)} righe, {data['anno'].nunique()} anni, {data['comune'].nunique()} comuni.")
+    print(f"✅ Caricati {len(data):,} record da {len(frames)} file comunali.")
     return data
-
 
 # =========================
 # 2️⃣ DATI PROVINCIALI (BELLUNO)
