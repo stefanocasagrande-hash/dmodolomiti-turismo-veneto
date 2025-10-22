@@ -24,14 +24,23 @@ st.success("✅ Accesso consentito")
 # ======================
 st.sidebar.header("⚙️ Filtri principali – Dati Comunali")
 
-data = load_dati_comunali("dati-mensili-per-comune")
-provincia = load_provincia_belluno("dati-provincia-annuali")
+data = load_dati_comunali("dolomiti-turismo-veneto/dati-mensili-per-comune")
+provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
+stl_dolomiti, stl_belluno = load_stl_data("dolomiti-turismo-veneto/stl-presenze-arrivi")
 
+# ======================
+# ✅ VERIFICA CARICAMENTO
+# ======================
 if data.empty:
-    st.error("❌ Nessun dato comunale caricato. Controlla la cartella 'dolomiti-turismo-veneto/dati-mensili-per-comune'.")
+    st.error("❌ Nessun dato comunale caricato. Controlla la cartella 'dati-mensili-per-comune'.")
     st.stop()
 else:
     st.success(f"✅ Dati comunali caricati: {len(data):,} righe, {data['anno'].nunique()} anni, {data['comune'].nunique()} comuni.")
+
+if not provincia.empty:
+    st.success(f"✅ Dati provinciali caricati: {len(provincia):,} righe, {provincia['anno'].nunique()} anni.")
+if not stl_dolomiti.empty or not stl_belluno.empty:
+    st.success("✅ Dati STL caricati correttamente.")
 
 # ======================
 # FILTRI COMUNALI
@@ -82,7 +91,6 @@ if not df_filtered.empty and len(anno_sel) >= 1:
         anni_sorted = sorted(anno_sel)
         anno_prev = anni_sorted[0]
         anno_recent = anni_sorted[1]
-
         tabella["Differenza"] = tabella[anno_recent] - tabella[anno_prev]
         tabella["Variazione %"] = (tabella["Differenza"] / tabella[anno_prev].replace(0, pd.NA)) * 100
 
@@ -92,9 +100,10 @@ if not df_filtered.empty and len(anno_sel) >= 1:
             "Variazione %": "{:.2f}%"
         })
 
-        st.markdown(f"**Confronto tra {anno_recent} e {anno_prev}** – differenze e variazioni calcolate come {anno_recent} − {anno_prev}.")
+        st.markdown(
+            f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come {anno_recent} − {anno_prev}."
+        )
         st.dataframe(tabella.style.format(fmt, thousands="."))
-
     else:
         fmt = {col: "{:,.0f}".format for col in tabella.columns if isinstance(col, int)}
         st.dataframe(tabella.style.format(fmt, thousands="."))
@@ -102,13 +111,23 @@ else:
     st.info("Seleziona almeno un anno e un comune per visualizzare la tabella comparativa.")
 
 # ======================
-# 📊 ANDAMENTO MENSILE (Comuni)
+# 📊 GRAFICO ANDAMENTO MENSILE (Comuni)
 # ======================
 st.subheader("📊 Andamento mensile (Comuni)")
 
 if not df_filtered.empty:
-    fig = px.line(df_filtered, x="mese", y="presenze", color="anno", markers=True, facet_row="comune")
-    fig.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi), legend_title_text="Anno")
+    fig = px.line(
+        df_filtered,
+        x="mese",
+        y="presenze",
+        color="anno",
+        markers=True,
+        facet_row="comune"
+    )
+    fig.update_layout(
+        xaxis=dict(categoryorder="array", categoryarray=mesi),
+        legend_title_text="Anno"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # ======================
@@ -117,8 +136,21 @@ if not df_filtered.empty:
 st.subheader("📆 Confronto tra mesi nei diversi anni (Comuni)")
 
 if not df_filtered.empty:
-    fig_bar = px.bar(df_filtered, x="anno", y="presenze", color="mese", barmode="group", facet_row="comune")
-    fig_bar.update_layout(legend_title_text="Mese", bargap=0.2, bargroupgap=0.05, xaxis_title="Anno", yaxis_title="Presenze")
+    fig_bar = px.bar(
+        df_filtered,
+        x="anno",
+        y="presenze",
+        color="mese",
+        barmode="group",
+        facet_row="comune"
+    )
+    fig_bar.update_layout(
+        legend_title_text="Mese",
+        bargap=0.2,
+        bargroupgap=0.05,
+        xaxis_title="Anno",
+        yaxis_title="Presenze"
+    )
     st.plotly_chart(fig_bar, use_container_width=True)
 
 # ======================
@@ -145,64 +177,61 @@ if mostra_provincia:
         cols_metric = st.columns(len(anni_sel_prov))
         for i, anno in enumerate(anni_sel_prov):
             prov_annuale = prov_filtrata[prov_filtrata["anno"] == anno]
-            tot_arrivi = int(prov_annuale["arrivi"].sum())
-            tot_pres = int(prov_annuale["presenze"].sum())
+            tot_arrivi = int(prov_annuale["arrivi"].sum()) if not prov_annuale.empty else 0
+            tot_pres = int(prov_annuale["presenze"].sum()) if not prov_annuale.empty else 0
             cols_metric[i].metric(f"Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
             cols_metric[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
 
-        st.subheader("📊 Andamento Arrivi mensili (Provincia di Belluno)")
-        fig_arr = px.line(prov_filtrata, x="mese", y="arrivi", color="anno", markers=True)
-        fig_arr.update_layout(xaxis_title="Mese", yaxis_title="Arrivi", legend_title="Anno")
-        st.plotly_chart(fig_arr, use_container_width=True)
+        # Grafici lineari
+        st.subheader("📈 Andamento Arrivi Mensili")
+        fig_arrivi = px.line(prov_filtrata, x="mese", y="arrivi", color="anno", markers=True)
+        st.plotly_chart(fig_arrivi, use_container_width=True)
 
-        st.subheader("📊 Andamento Presenze mensili (Provincia di Belluno)")
+        st.subheader("📈 Andamento Presenze Mensili")
         fig_pres = px.line(prov_filtrata, x="mese", y="presenze", color="anno", markers=True)
-        fig_pres.update_layout(xaxis_title="Mese", yaxis_title="Presenze", legend_title="Anno")
         st.plotly_chart(fig_pres, use_container_width=True)
 
 # ======================
-# 🏞️ SEZIONE STL (Dolomiti e Belluno)
+# 🏔️ SEZIONE STL
 # ======================
 st.sidebar.markdown("---")
-mostra_stl = st.sidebar.checkbox("🏞️ Mostra dati STL – Arrivi e Presenze")
+mostra_stl = st.sidebar.checkbox("📍 Mostra dati STL (Dolomiti / Belluno)")
 
 if mostra_stl:
-    stl_dolomiti, stl_belluno = load_stl_data("dolomiti-turismo-veneto/stl-presenze-arrivi")
-
     st.sidebar.header("⚙️ Filtri – Dati STL")
-    stl_tipo = st.sidebar.radio("Seleziona STL", ["Dolomiti", "Belluno"])
 
-    df_stl = stl_dolomiti if stl_tipo == "Dolomiti" else stl_belluno
-    titolo = f"🏔️ STL {stl_tipo} – Arrivi e Presenze mensili"
+    stl_tipo = st.sidebar.selectbox("Seleziona STL", ["Dolomiti", "Belluno"])
+    stl_data = stl_dolomiti if stl_tipo == "Dolomiti" else stl_belluno
 
-    if df_stl.empty:
-        st.warning(f"⚠️ Nessun dato disponibile per {stl_tipo}.")
+    if stl_data.empty:
+        st.warning(f"⚠️ Nessun dato STL {stl_tipo} caricato.")
     else:
-        st.markdown("---")
-        st.header(titolo)
-
-        anni_stl = sorted(df_stl["anno"].unique())
+        anni_stl = sorted(stl_data["anno"].unique())
         anni_sel_stl = st.sidebar.multiselect("Seleziona Anno (STL)", anni_stl, default=[anni_stl[-1]])
-        df_stl_filtrata = df_stl[df_stl["anno"].isin(anni_sel_stl)]
 
-        st.subheader("📈 Indicatori principali (STL)")
-        cols_stl = st.columns(len(anni_sel_stl))
+        st.markdown("---")
+        st.header(f"🏔️ STL {stl_tipo} – Arrivi e Presenze mensili")
+
+        stl_filtrata = stl_data[stl_data["anno"].isin(anni_sel_stl)]
+
+        # Indicatori STL
+        st.subheader("📈 Indicatori STL")
+        cols_metric = st.columns(len(anni_sel_stl))
         for i, anno in enumerate(anni_sel_stl):
-            df_anno = df_stl_filtrata[df_stl_filtrata["anno"] == anno]
-            tot_arrivi = int(df_anno["totale_arrivi"].sum())
-            tot_pres = int(df_anno["totale_presenze"].sum())
-            cols_stl[i].metric(f"Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
-            cols_stl[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
+            stl_annuale = stl_filtrata[stl_filtrata["anno"] == anno]
+            tot_arrivi = int(stl_annuale["arrivi"].sum())
+            tot_pres = int(stl_annuale["presenze"].sum())
+            cols_metric[i].metric(f"Arrivi {anno}", f"{tot_arrivi:,}".replace(",", "."))
+            cols_metric[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
 
-        st.subheader("📊 Andamento Arrivi mensili (STL)")
-        fig_arr = px.line(df_stl_filtrata, x="mese", y="totale_arrivi", color="anno", markers=True)
-        fig_arr.update_layout(xaxis_title="Mese", yaxis_title="Arrivi", legend_title="Anno")
-        st.plotly_chart(fig_arr, use_container_width=True)
+        # Grafici STL
+        st.subheader("📈 Andamento Arrivi Mensili")
+        fig_arrivi_stl = px.line(stl_filtrata, x="mese", y="arrivi", color="anno", markers=True)
+        st.plotly_chart(fig_arrivi_stl, use_container_width=True)
 
-        st.subheader("📊 Andamento Presenze mensili (STL)")
-        fig_pres = px.line(df_stl_filtrata, x="mese", y="totale_presenze", color="anno", markers=True)
-        fig_pres.update_layout(xaxis_title="Mese", yaxis_title="Presenze", legend_title="Anno")
-        st.plotly_chart(fig_pres, use_container_width=True)
+        st.subheader("📈 Andamento Presenze Mensili")
+        fig_pres_stl = px.line(stl_filtrata, x="mese", y="presenze", color="anno", markers=True)
+        st.plotly_chart(fig_pres_stl, use_container_width=True)
 
 # ======================
 # 🧾 FOOTER
