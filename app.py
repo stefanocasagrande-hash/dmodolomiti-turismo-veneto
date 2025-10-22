@@ -3,6 +3,34 @@ import pandas as pd
 import plotly.express as px
 from etl import load_dati_comunali, load_provincia_belluno, load_stl_data
 
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from etl import load_data, load_provincia_belluno
+
+# --- DEBUG TEMPORANEO: rimuovere dopo i controlli ---
+import os, sys
+st.write("DEBUG: working dir:", os.getcwd())
+st.write("DEBUG: __file__ (app):", __file__ if "__file__" in globals() else "n/a")
+st.write("DEBUG: python sys.path:", sys.path[:5])
+root_list = sorted(os.listdir(".")) if os.path.exists(".") else []
+st.write("DEBUG: root listing (first 40):", root_list[:40])
+target = os.path.join(os.getcwd(), "dati-mensili-per-comune")
+st.write("DEBUG: target path exist:", os.path.exists(target), " ->", target)
+if os.path.exists(target):
+    files = sorted([f for f in os.listdir(target) if f.lower().endswith((".txt",".csv"))])
+    st.write("DEBUG: files in target (count):", len(files))
+    st.write("DEBUG: files sample:", files[:10])
+    if files:
+        sample = os.path.join(target, files[0])
+        try:
+            with open(sample, "rb") as fh:
+                raw = fh.read(800)
+            st.write("DEBUG: first bytes of", files[0], ":", raw[:800])
+        except Exception as e:
+            st.write("DEBUG: impossibile leggere sample:", e)
+# --- fine debug ---
+
 # ======================
 # ⚙️ CONFIGURAZIONE BASE
 # ======================
