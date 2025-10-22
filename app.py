@@ -1,3 +1,8 @@
+import os, sys
+print("DEBUG current working dir:", os.getcwd())
+print("DEBUG files in cwd:", os.listdir("."))
+print("DEBUG sys.path:", sys.path[:5])
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
