@@ -146,13 +146,51 @@ def load_stl_data(base_folder="dmodolomiti-turismo-veneto/stl-presenze-arrivi"):
                 df = pd.read_csv(path, sep=";", encoding="utf-8")
             except UnicodeDecodeError:
                 df = pd.read_csv(path, sep=";", encoding="latin1")
-
-            if not {"Mese", "Totale arrivi", "Totale presenze"}.issubset(df.columns):
+            except Exception as e:
+                print(f"⚠️ Errore lettura STL {file}: {e}")
                 continue
 
-            df = df.rename(columns={"Mese": "mese", "Totale arrivi": "arrivi", "Totale presenze": "presenze"})
+            # Normalizza nomi colonne
+            cols_lower = [c.strip() for c in df.columns]
+            df.columns = cols_lower
+
+            # Individua colonne (variazioni possibili)
+            col_mese = None
+            col_arrivi = None
+            col_presenze = None
+            for c in df.columns:
+                cl = c.lower()
+                if "mese" == cl or cl.startswith("mese"):
+                    col_mese = c
+                if "arrivi" in cl:
+                    col_arrivi = c
+                if "presenze" in cl:
+                    col_presenze = c
+
+            if not (col_mese and (col_arrivi or "totale arrivi" in df.columns) and (col_presenze or "totale presenze" in df.columns)):
+                # salta file non conformi
+                continue
+
+            # rinomina colonne in standard
+            df = df.rename(columns={col_mese: "mese", col_arrivi: "arrivi", col_presenze: "presenze"})
+
+            # Some files may have a 'Totale' row: remove it
+            df["mese"] = df["mese"].astype(str).str.strip()
+            df = df[~df["mese"].str.lower().str.contains(r"^tot")]  # rimuove 'Totale','TOTALE', ecc.
+
+            # keep only valid month labels (first 3 letter codes if present)
+            df["mese"] = df["mese"].str[:3].str.capitalize()
+            mesi_validi = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"]
+            df = df[df["mese"].isin(mesi_validi)]
+
+            # Estrai anno dal nome file
             year = "".join([c for c in file if c.isdigit()])
             df["anno"] = int(year) if year else None
+
+            # Converti numeri
+            df["arrivi"] = pd.to_numeric(df["arrivi"], errors="coerce").fillna(0).astype(int)
+            df["presenze"] = pd.to_numeric(df["presenze"], errors="coerce").fillna(0).astype(int)
+
             frames.append(df[["anno", "mese", "arrivi", "presenze"]])
 
         if frames:
