@@ -2,151 +2,146 @@ import os
 import pandas as pd
 
 # =========================
-# 1️⃣ DATI COMUNALI
+# 1️⃣ CARICAMENTO DATI COMUNALI
 # =========================
-def load_dati_comunali(folder_path="dolomiti-turismo-veneto/dati-mensili-per-comune"):
+def load_dati_comunali(data_folder="dati-mensili-per-comune"):
     """
-    Carica i file dei dati comunali (turismo-per-mese-comune-*.txt)
-    e li combina in un unico DataFrame normalizzato.
+    Carica tutti i file turismo-per-mese-comune-*.txt
+    e li trasforma nel formato lungo (una riga per mese e Comune).
     """
     frames = []
-    ordine_mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
-                   "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+    mesi_map = {
+        "Gen": "Gennaio", "Feb": "Febbraio", "Mar": "Marzo", "Apr": "Aprile",
+        "Mag": "Maggio", "Giu": "Giugno", "Lug": "Luglio", "Ago": "Agosto",
+        "Set": "Settembre", "Ott": "Ottobre", "Nov": "Novembre", "Dic": "Dicembre"
+    }
 
-    if not os.path.exists(folder_path):
-        print(f"⚠️ Cartella non trovata: {folder_path}")
+    if not os.path.exists(data_folder):
+        print(f"❌ Cartella non trovata: {data_folder}")
         return pd.DataFrame()
 
-    for file in os.listdir(folder_path):
-        if not file.endswith(".txt"):
+    for file in os.listdir(data_folder):
+        if not file.lower().endswith(".txt"):
+            continue
+        path = os.path.join(data_folder, file)
+
+        # Salta file vuoti
+        if os.path.getsize(path) == 0:
+            print(f"⚠️ File vuoto saltato: {file}")
             continue
 
-        path = os.path.join(folder_path, file)
         try:
-            if os.path.getsize(path) == 0:
-                continue
-
             df = pd.read_csv(path, sep=";", encoding="utf-8")
+        except UnicodeDecodeError:
+            df = pd.read_csv(path, sep=";", encoding="latin1")
         except Exception as e:
-            print(f"⚠️ Errore lettura {file}: {e}")
+            print(f"⚠️ Errore nella lettura di {file}: {e}")
             continue
 
-        if df.empty or "Comuni" not in df.columns:
+        # Verifica colonne base
+        if "Comuni" not in df.columns:
+            print(f"⚠️ File senza colonna 'Comuni': {file}")
             continue
 
-        # Normalizza colonne
-        df.columns = [c.strip().lower() for c in df.columns]
-        anno = "".join([c for c in file if c.isdigit()])
-        df["anno"] = int(anno) if anno else None
+        # Estrai anno dal nome file
+        year = "".join([c for c in file if c.isdigit()])
+        anno = int(year) if year else None
 
-        # Ricostruisci struttura mese → valore
-        mesi_colonne = [c for c in df.columns if "presenze" in c]
+        # Trasforma le colonne mensili in formato lungo
+        mesi_cols = [c for c in df.columns if "Presenze" in c and any(m in c for m in mesi_map.keys())]
         df_long = df.melt(
-            id_vars=["anno", "comuni"],
-            value_vars=mesi_colonne,
+            id_vars=["Comuni"],
+            value_vars=mesi_cols,
             var_name="mese",
             value_name="presenze"
         )
 
-        # Pulizia
-        df_long["mese"] = (
-            df_long["mese"].str.extract(r"(\w{3})")[0]
-            .str.capitalize()
-            .replace({"Gen": "Gen", "Feb": "Feb", "Mar": "Mar", "Apr": "Apr", "Mag": "Mag",
-                      "Giu": "Giu", "Lug": "Lug", "Ago": "Ago", "Set": "Set", "Ott": "Ott", "Nov": "Nov", "Dic": "Dic"})
-        )
-        df_long["mese"] = pd.Categorical(df_long["mese"], categories=ordine_mesi, ordered=True)
-        df_long.rename(columns={"comuni": "comune"}, inplace=True)
+        # Pulisci mese (es. "Gen Presenze" → "Gen")
+        df_long["mese"] = df_long["mese"].str.extract(r"^(\w{3})")[0]
+        df_long["mese"] = pd.Categorical(df_long["mese"], categories=list(mesi_map.keys()), ordered=True)
+
+        # Aggiungi anno
+        df_long["anno"] = anno
+
+        # Pulisci nome Comune
+        df_long["comune"] = df_long["Comuni"].str.strip()
+        df_long.drop(columns=["Comuni"], inplace=True)
+
+        # Converti presenze in numerico
+        df_long["presenze"] = pd.to_numeric(df_long["presenze"], errors="coerce").fillna(0).astype(int)
+
         frames.append(df_long)
 
     if not frames:
-        print("⚠️ Nessun file comunale valido trovato.")
+        print("⚠️ Nessun file valido trovato.")
         return pd.DataFrame()
 
     data = pd.concat(frames, ignore_index=True)
-    data = data.dropna(subset=["comune", "presenze"])
-    data["presenze"] = data["presenze"].astype(float)
-    data = data.sort_values(["anno", "mese", "comune"])
+    data = data.sort_values(["anno", "comune", "mese"])
     return data
 
 
 # =========================
-# 2️⃣ DATI PROVINCIALI
+# 2️⃣ CARICAMENTO DATI PROVINCIALI
 # =========================
-def load_provincia_belluno(folder_path="dolomiti-turismo-veneto/dati-provincia-annuali"):
-    """
-    Carica i dati provinciali (presenze-arrivi-provincia-belluno-*.txt)
-    e li combina in un DataFrame con colonne standard: anno, mese, arrivi, presenze.
-    """
+def load_provincia_belluno(data_folder="dati-provincia-annuali"):
     frames = []
-    if not os.path.exists(folder_path):
+    if not os.path.exists(data_folder):
         return pd.DataFrame()
 
-    for file in os.listdir(folder_path):
+    for file in os.listdir(data_folder):
         if not file.endswith(".txt"):
             continue
-
-        path = os.path.join(folder_path, file)
+        path = os.path.join(data_folder, file)
         try:
             df = pd.read_csv(path, sep=";", encoding="utf-8")
-        except Exception:
+        except UnicodeDecodeError:
+            df = pd.read_csv(path, sep=";", encoding="latin1")
+
+        df.columns = [c.strip().lower() for c in df.columns]
+        if not {"mese", "totale arrivi", "totale presenze"}.issubset(df.columns):
             continue
 
-        if df.empty or "Mese" not in df.columns:
-            continue
-
-        df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-        anno = "".join([c for c in file if c.isdigit()])
-        df["anno"] = int(anno) if anno else None
-
-        df["mese"] = df["mese"].str[:3].str.capitalize()
-        df = df.rename(columns={"totale_arrivi": "arrivi", "totale_presenze": "presenze"})
-        df = df[["anno", "mese", "arrivi", "presenze"]]
-        frames.append(df)
+        df["arrivi"] = df["totale arrivi"]
+        df["presenze"] = df["totale presenze"]
+        frames.append(df[["anno", "mese", "arrivi", "presenze"]])
 
     if not frames:
         return pd.DataFrame()
 
-    data = pd.concat(frames, ignore_index=True)
-    data = data.sort_values(["anno", "mese"])
-    return data
+    return pd.concat(frames, ignore_index=True)
 
 
 # =========================
-# 3️⃣ DATI STL (Dolomiti / Belluno)
+# 3️⃣ CARICAMENTO DATI STL
 # =========================
-def load_stl_data(base_folder="dolomiti-turismo-veneto/stl-presenze-arrivi"):
-    """
-    Carica i dati STL per Dolomiti e Belluno.
-    """
-    def load_stl_subfolder(subfolder):
-        folder_path = os.path.join(base_folder, subfolder)
+def load_stl_data(base_folder="stl-presenze-arrivi"):
+    stl_dolomiti = pd.DataFrame()
+    stl_belluno = pd.DataFrame()
+
+    for tipo in ["stl-dolomiti", "stl-belluno"]:
+        folder = os.path.join(base_folder, tipo)
         frames = []
-        if not os.path.exists(folder_path):
-            return pd.DataFrame()
-
-        for file in os.listdir(folder_path):
+        if not os.path.exists(folder):
+            continue
+        for file in os.listdir(folder):
             if not file.endswith(".txt"):
                 continue
-            path = os.path.join(folder_path, file)
+            path = os.path.join(folder, file)
             try:
                 df = pd.read_csv(path, sep=";", encoding="utf-8")
-            except Exception:
+            except UnicodeDecodeError:
+                df = pd.read_csv(path, sep=";", encoding="latin1")
+            if not {"Mese", "Totale arrivi", "Totale presenze"}.issubset(df.columns):
                 continue
+            df = df.rename(columns={"Mese": "mese", "Totale arrivi": "arrivi", "Totale presenze": "presenze"})
+            year = "".join([c for c in file if c.isdigit()])
+            df["anno"] = int(year) if year else None
+            frames.append(df[["anno", "mese", "arrivi", "presenze"]])
+        if frames:
+            if tipo == "stl-dolomiti":
+                stl_dolomiti = pd.concat(frames, ignore_index=True)
+            else:
+                stl_belluno = pd.concat(frames, ignore_index=True)
 
-            if df.empty or "Mese" not in df.columns:
-                continue
-
-            df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-            anno = "".join([c for c in file if c.isdigit()])
-            df["anno"] = int(anno) if anno else None
-            df["mese"] = df["mese"].str[:3].str.capitalize()
-            df = df.rename(columns={"totale_arrivi": "arrivi", "totale_presenze": "presenze"})
-            df = df[["anno", "mese", "arrivi", "presenze"]]
-            frames.append(df)
-
-        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-
-    stl_dolomiti = load_stl_subfolder("stl-dolomiti")
-    stl_belluno = load_stl_subfolder("stl-belluno")
     return stl_dolomiti, stl_belluno
