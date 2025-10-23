@@ -3,30 +3,6 @@ import pandas as pd
 import plotly.express as px
 from etl import load_dati_comunali, load_provincia_belluno, load_stl_data
 
-# --- DEBUG DI DIRECTORY / FILE (DA RIMUOVERE DOPO) ---
-import os, sys
-st.markdown("### 🔎 DEBUG: ambiente e file")
-st.write("cwd:", os.getcwd())
-st.write("__file__:", __file__ if "__file__" in globals() else "n/a")
-st.write("lista root (prime 40):", sorted(os.listdir("."))[:40])
-target = os.path.join(os.getcwd(), "dati-mensili-per-comune")
-st.write("target path:", target)
-st.write("esiste target?:", os.path.exists(target))
-if os.path.exists(target):
-    files = sorted([f for f in os.listdir(target) if f.lower().endswith((".txt",".csv"))])
-    st.write("numero file target:", len(files))
-    st.write("sample file:", files[:10])
-    if files:
-        sample = os.path.join(target, files[0])
-        st.write("sample path:", sample)
-        try:
-            with open(sample, "rb") as fh:
-                raw = fh.read(1000)
-            st.write("prima riga (raw bytes):", raw.split(b"\n",1)[0])
-        except Exception as e:
-            st.write("impossibile leggere sample:", e)
-# --- fine debug ---
-
 # ======================
 # ⚙️ CONFIGURAZIONE BASE
 # ======================
