@@ -121,6 +121,56 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
         st.plotly_chart(px.line(stl_filtrata, x="mese", y="presenze", color="anno", markers=True), use_container_width=True)
 
 # ======================
+# 📋 TABELLA CONFRONTO TRA ANNI (STL)
+# ======================
+st.subheader(f"📋 Confronto tra anni – Differenze e variazioni (STL {stl_tipo})")
+
+if not stl_filtrata.empty:
+    # Pivot: mese × anno
+    tabella_stl = (
+        stl_filtrata.groupby(["anno", "mese"])[["arrivi", "presenze"]]
+        .sum()
+        .reset_index()
+        .pivot_table(index="mese", columns="anno", values=["arrivi", "presenze"], fill_value=0)
+    )
+
+    # Se sono selezionati esattamente 2 anni, calcola differenza e variazione %
+    if len(anni_sel_stl) == 2:
+        anni_sorted = sorted(anni_sel_stl)
+        anno_prev = anni_sorted[0]     # meno recente
+        anno_recent = anni_sorted[1]   # più recente
+
+        for metrica in ["arrivi", "presenze"]:
+            diff_col = (metrica, "Differenza")
+            pct_col = (metrica, "Variazione %")
+            tabella_stl[diff_col] = (
+                tabella_stl[(metrica, anno_recent)] - tabella_stl[(metrica, anno_prev)]
+            )
+            tabella_stl[pct_col] = (
+                (tabella_stl[diff_col] / tabella_stl[(metrica, anno_prev)].replace(0, pd.NA)) * 100
+            )
+
+        st.markdown(
+            f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come {anno_recent} − {anno_prev}."
+        )
+
+    # Formattazione numerica
+    fmt = {
+        col: "{:,.0f}".format
+        for col in tabella_stl.columns
+        if not (isinstance(col, tuple) and col[1] == "Variazione %")
+    }
+    fmt.update({
+        col: "{:.2f}%"
+        for col in tabella_stl.columns
+        if isinstance(col, tuple) and col[1] == "Variazione %"
+    })
+
+    st.dataframe(tabella_stl.style.format(fmt, thousands="."))
+else:
+    st.info("Seleziona almeno un anno per visualizzare la tabella comparativa STL.")
+
+# ======================
 # 🧾 FOOTER
 # ======================
 st.caption("© 2025 Dashboard Fondazione D.M.O. Dolomiti Bellunesi – Uso interno")
