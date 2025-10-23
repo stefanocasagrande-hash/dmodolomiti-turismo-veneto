@@ -48,9 +48,9 @@ st.success("✅ Accesso consentito")
 # ======================
 st.sidebar.header("⚙️ Filtri principali – Dati Comunali")
 
-data = load_dati_comunali("dolomiti-turismo-veneto/dati-mensili-per-comune")
-provincia = load_provincia_belluno("dolomiti-turismo-veneto/dati-provincia-annuali")
-stl_dolomiti, stl_belluno = load_stl_data("dolomiti-turismo-veneto/stl-presenze-arrivi")
+data = load_dati_comunali("dati-mensili-per-comune")
+provincia = load_provincia_belluno("dati-provincia-annuali")
+stl_dolomiti, stl_belluno = load_stl_data("stl-presenze-arrivi")
 
 if data.empty:
     st.error("❌ Nessun dato comunale caricato.")
