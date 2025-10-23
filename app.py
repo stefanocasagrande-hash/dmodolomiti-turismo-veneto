@@ -108,6 +108,7 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
         anni_sel_stl = st.sidebar.multiselect("Anno (STL)", anni_stl, default=[anni_stl[-1]])
         stl_filtrata = stl_data[stl_data["anno"].isin(anni_sel_stl)]
 
+        # Indicatori principali
         cols = st.columns(len(anni_sel_stl))
         for i, anno in enumerate(anni_sel_stl):
             tot_arr = int(stl_filtrata[stl_filtrata["anno"] == anno]["arrivi"].sum())
@@ -115,60 +116,53 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
             cols[i].metric(f"Arrivi {anno}", f"{tot_arr:,}".replace(",", "."))
             cols[i].metric(f"Presenze {anno}", f"{tot_pre:,}".replace(",", "."))
 
+        # Grafici STL
         st.subheader("📈 Andamento Arrivi Mensili")
-        st.plotly_chart(px.line(stl_filtrata, x="mese", y="arrivi", color="anno", markers=True), use_container_width=True)
+        fig_arrivi_stl = px.line(stl_filtrata, x="mese", y="arrivi", color="anno", markers=True)
+        st.plotly_chart(fig_arrivi_stl, use_container_width=True)
+
         st.subheader("📈 Andamento Presenze Mensili")
-        st.plotly_chart(px.line(stl_filtrata, x="mese", y="presenze", color="anno", markers=True), use_container_width=True)
+        fig_pres_stl = px.line(stl_filtrata, x="mese", y="presenze", color="anno", markers=True)
+        st.plotly_chart(fig_pres_stl, use_container_width=True)
 
-# ======================
-# 📋 TABELLA CONFRONTO TRA ANNI (STL)
-# ======================
-st.subheader(f"📋 Confronto tra anni – Differenze e variazioni (STL {stl_tipo})")
+        # ======================
+        # 📋 TABELLA CONFRONTO TRA ANNI (STL)
+        # ======================
+        st.subheader(f"📋 Confronto tra anni – Differenze e variazioni (STL {tipo})")
 
-if not stl_filtrata.empty:
-    # Pivot: mese × anno
-    tabella_stl = (
-        stl_filtrata.groupby(["anno", "mese"])[["arrivi", "presenze"]]
-        .sum()
-        .reset_index()
-        .pivot_table(index="mese", columns="anno", values=["arrivi", "presenze"], fill_value=0)
-    )
-
-    # Se sono selezionati esattamente 2 anni, calcola differenza e variazione %
-    if len(anni_sel_stl) == 2:
-        anni_sorted = sorted(anni_sel_stl)
-        anno_prev = anni_sorted[0]     # meno recente
-        anno_recent = anni_sorted[1]   # più recente
-
-        for metrica in ["arrivi", "presenze"]:
-            diff_col = (metrica, "Differenza")
-            pct_col = (metrica, "Variazione %")
-            tabella_stl[diff_col] = (
-                tabella_stl[(metrica, anno_recent)] - tabella_stl[(metrica, anno_prev)]
-            )
-            tabella_stl[pct_col] = (
-                (tabella_stl[diff_col] / tabella_stl[(metrica, anno_prev)].replace(0, pd.NA)) * 100
+        if not stl_filtrata.empty:
+            tabella_stl = (
+                stl_filtrata.groupby(["anno", "mese"])[["arrivi", "presenze"]]
+                .sum()
+                .reset_index()
+                .pivot_table(index="mese", columns="anno", values="presenze", fill_value=0)
             )
 
-        st.markdown(
-            f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come {anno_recent} − {anno_prev}."
-        )
+            # Aggiungi riga Totale
+            totale = tabella_stl.sum(numeric_only=True)
+            totale.name = "Totale Anno"
+            tabella_stl = pd.concat([tabella_stl, totale.to_frame().T])
 
-    # Formattazione numerica
-    fmt = {
-        col: "{:,.0f}".format
-        for col in tabella_stl.columns
-        if not (isinstance(col, tuple) and col[1] == "Variazione %")
-    }
-    fmt.update({
-        col: "{:.2f}%"
-        for col in tabella_stl.columns
-        if isinstance(col, tuple) and col[1] == "Variazione %"
-    })
+            # Se sono selezionati due anni → calcola differenze e variazioni
+            if len(anni_sel_stl) == 2:
+                anni_sorted = sorted(anni_sel_stl)
+                anno_prev, anno_recent = anni_sorted
+                tabella_stl["Differenza"] = tabella_stl[anno_recent] - tabella_stl[anno_prev]
+                tabella_stl["Variazione %"] = (
+                    (tabella_stl["Differenza"] / tabella_stl[anno_prev].replace(0, pd.NA)) * 100
+                )
 
-    st.dataframe(tabella_stl.style.format(fmt, thousands="."))
-else:
-    st.info("Seleziona almeno un anno per visualizzare la tabella comparativa STL.")
+                st.markdown(
+                    f"**Confronto tra {anno_recent} e {anno_prev}** – differenze e variazioni calcolate come *{anno_recent} − {anno_prev}*."
+                )
+
+                fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if isinstance(col, int)}
+                fmt.update({"Differenza": "{:,.0f}".format, "Variazione %": "{:.2f}%"})
+                st.dataframe(tabella_stl.style.format(fmt, thousands="."))
+
+            else:
+                fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if isinstance(col, int)}
+                st.dataframe(tabella_stl.style.format(fmt, thousands="."))
 
 # ======================
 # 🧾 FOOTER
