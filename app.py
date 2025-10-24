@@ -65,7 +65,7 @@ else:
 # 📈 ANDAMENTO MENSILE (COMUNI)
 # ======================
 if not df_filtered.empty:
-    st.subheader("📈 Andamento mensile (Comuni)")
+    st.subheader("📈 Andamento mensile Presenze (Comuni)")
     fig = px.line(df_filtered, x="mese", y="presenze", color="anno", markers=True, facet_row="comune")
     fig.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi))
     st.plotly_chart(fig, use_container_width=True)
