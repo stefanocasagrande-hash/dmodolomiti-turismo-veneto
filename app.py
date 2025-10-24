@@ -236,59 +236,66 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
         st.plotly_chart(fig_pre, use_container_width=True)
 
         # ======================
-        # 📊 TABELLA CONFRONTO TRA ANNI E MESI (STL)
-        # ======================
-        st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (STL)")
+# 📊 TABELLA CONFRONTO TRA ANNI E MESI (STL)
+# ======================
+st.subheader(f"📊 Confronto tra anni e mesi – Differenze e variazioni (STL {sel_metrica})")
 
-        tabella_stl = (
-            stl_filtrata.groupby(["anno", "mese"])["presenze"]
-            .sum()
-            .reset_index()
-            .pivot_table(index="mese", columns="anno", values="presenze", fill_value=0)
-        )
+# Usa la metrica selezionata (arrivi o presenze)
+colonna = sel_metrica.lower()
 
-        # Ordina mesi in ordine cronologico
-        tabella_stl = tabella_stl.reindex(mesi_validi)
+tabella_stl = (
+    stl_filtrata.groupby(["anno", "mese"])[colonna]
+    .sum()
+    .reset_index()
+    .pivot_table(index="mese", columns="anno", values=colonna, fill_value=0)
+)
 
-        # Aggiungi riga "Totale"
-        totale = pd.DataFrame(tabella_stl.sum()).T
-        totale.index = ["Totale"]
-        tabella_stl = pd.concat([tabella_stl, totale])
+# Ordina mesi
+mesi_ordine = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+tabella_stl = tabella_stl.reindex(mesi_ordine)
 
-        if len(anni_sel_stl) == 2:
-            anni_sorted = sorted(anni_sel_stl)
-            anno_prev, anno_recent = anni_sorted
+# Aggiungi riga Totale
+totale = pd.DataFrame(tabella_stl.sum()).T
+totale.index = ["Totale"]
+tabella_stl = pd.concat([tabella_stl, totale])
 
-            tabella_stl["Differenza"] = tabella_stl[anno_recent] - tabella_stl[anno_prev]
-            tabella_stl["Variazione %"] = (tabella_stl["Differenza"] / tabella_stl[anno_prev].replace(0, pd.NA)) * 100
+# Se due anni selezionati → calcola differenze e variazioni %
+if len(anni_sel_stl) == 2:
+    anno_prev, anno_recent = sorted(anni_sel_stl)
 
-            st.markdown(f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come *{anno_recent} − {anno_prev}*.")
+    tabella_stl["Differenza"] = tabella_stl[anno_recent] - tabella_stl[anno_prev]
+    tabella_stl["Variazione %"] = (tabella_stl["Differenza"] / tabella_stl[anno_prev].replace(0, pd.NA)) * 100
 
-            def color_var(val):
-                if pd.isna(val):
-                    return "color: grey;"
-                elif val > 0:
-                    return "color: green; font-weight: bold;"
-                elif val < 0:
-                    return "color: red; font-weight: bold;"
-                else:
-                    return "color: grey;"
+    st.markdown(
+        f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come *{anno_recent} − {anno_prev}*."
+    )
 
-            fmt = {}
-            for col in tabella_stl.columns:
-                if col == "Variazione %":
-                    fmt[col] = "{:.2f}%"
-                else:
-                    fmt[col] = "{:,.0f}".format
-
-            styled = (
-                tabella_stl.style.format(fmt, thousands=".")
-                .applymap(color_var, subset=["Variazione %"])
-            )
-            st.dataframe(styled)
+    def color_var(val):
+        if pd.isna(val):
+            return "color: grey;"
+        elif val > 0:
+            return "color: green; font-weight: bold;"
+        elif val < 0:
+            return "color: red; font-weight: bold;"
         else:
-            fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if tabella_stl[col].dtype != "O"}
-            st.dataframe(tabella_stl.style.format(fmt, thousands="."))
+            return "color: grey;"
+
+    fmt = {}
+    for col in tabella_stl.columns:
+        if col == "Variazione %":
+            fmt[col] = "{:.2f}%"
+        else:
+            fmt[col] = "{:,.0f}".format
+
+    styled = (
+        tabella_stl.style.format(fmt, thousands=".")
+        .applymap(color_var, subset=["Variazione %"])
+    )
+
+    st.dataframe(styled, use_container_width=True)
+else:
+    fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if tabella_stl[col].dtype != "O"}
+    st.dataframe(tabella_stl.style.format(fmt, thousands="."), use_container_width=True)
 
 # ======================
 # 🧾 FOOTER
