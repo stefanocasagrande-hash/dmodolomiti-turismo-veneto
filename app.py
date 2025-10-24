@@ -132,24 +132,22 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
         st.plotly_chart(fig, use_container_width=True)
 
         # ======================
-        # 📋 TABELLA CONFRONTO TRA ANNI (STL)
+        # 📊 TABELLA CONFRONTO TRA ANNI E MESI (STL)
         # ======================
-        st.subheader(f"📋 Confronto tra anni – Differenze e variazioni (STL {tipo} / {sel_metrica})")
+        st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (STL)")
 
-        # Pivot: mese × anno for the selected metric
         tabella_stl = (
-            stl_filtrata.groupby(["anno", "mese"])[sel_metrica.lower()]
+            stl_filtrata.groupby(["anno", "mese"])["presenze"]
             .sum()
             .reset_index()
-            .pivot_table(index="mese", columns="anno", values=sel_metrica.lower(), fill_value=0)
+            .pivot_table(index="mese", columns="anno", values="presenze", fill_value=0)
         )
 
-        # Aggiungi riga Totale Anno
-        totale = tabella_stl.sum(numeric_only=True)
-        totale.name = "Totale Anno"
-        tabella_stl = pd.concat([tabella_stl, totale.to_frame().T])
+        # Ordina i mesi in ordine cronologico
+        mesi_ordine = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+        tabella_stl = tabella_stl.reindex(mesi_ordine)
 
-                if len(anni_sel_stl) == 2:
+        if len(anni_sel_stl) == 2:
             anni_sorted = sorted(anni_sel_stl)
             anno_prev, anno_recent = anni_sorted
             tabella_stl["Differenza"] = tabella_stl[anno_recent] - tabella_stl[anno_prev]
@@ -171,7 +169,7 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
 
             st.dataframe(tabella_stl.style.format(fmt, thousands="."))
         else:
-            # Mostra semplicemente la tabella senza differenze se ci sono più di 2 anni
+            # Mostra la tabella semplice se ci sono più di 2 anni
             fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if tabella_stl[col].dtype != "O"}
             st.dataframe(tabella_stl.style.format(fmt, thousands="."))
 
