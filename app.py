@@ -149,21 +149,30 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
         totale.name = "Totale Anno"
         tabella_stl = pd.concat([tabella_stl, totale.to_frame().T])
 
-        if len(anni_sel_stl) == 2:
+                if len(anni_sel_stl) == 2:
             anni_sorted = sorted(anni_sel_stl)
             anno_prev, anno_recent = anni_sorted
             tabella_stl["Differenza"] = tabella_stl[anno_recent] - tabella_stl[anno_prev]
             tabella_stl["Variazione %"] = (
                 (tabella_stl["Differenza"] / tabella_stl[anno_prev].replace(0, pd.NA)) * 100
             )
+
             st.markdown(
                 f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come *{anno_recent} − {anno_prev}*."
             )
-            fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if col not in ("Variazione %")}
-            fmt["Variazione %"] = "{:.2f}%"
+
+            # Formattazione sicura
+            fmt = {}
+            for col in tabella_stl.columns:
+                if col == "Variazione %":
+                    fmt[col] = "{:.2f}%"
+                else:
+                    fmt[col] = "{:,.0f}".format
+
             st.dataframe(tabella_stl.style.format(fmt, thousands="."))
         else:
-            fmt = {col: "{:,.0f}".format for col in tabella_stl.columns}
+            # Mostra semplicemente la tabella senza differenze se ci sono più di 2 anni
+            fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if tabella_stl[col].dtype != "O"}
             st.dataframe(tabella_stl.style.format(fmt, thousands="."))
 
 # ======================
