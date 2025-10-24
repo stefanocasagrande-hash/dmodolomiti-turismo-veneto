@@ -50,7 +50,7 @@ df_filtered = data[(data["anno"].isin(anno_sel)) & (data["comune"].isin(comune_s
 # ======================
 # 📈 INDICATORI COMUNALI
 # ======================
-st.header("📈 Indicatori principali – Comuni")
+st.header("📈 Analisi Presenze – Comuni")
 if df_filtered.empty:
     st.warning("Nessun dato disponibile per i filtri selezionati.")
 else:
