@@ -188,66 +188,37 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
             st.dataframe(tabella_stl.style.format(fmt, thousands="."))
 
         # ======================
-        # 📊 TABELLA CONFRONTO TRA ANNI E MESI (STL)
+        # 📊 VARIAZIONE % IN ALTO (KPI)
         # ======================
-        st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (STL)")
-
-        tabella_stl = (
-            stl_filtrata.groupby(["anno", "mese"])["presenze"]
-            .sum()
-            .reset_index()
-            .pivot_table(index="mese", columns="anno", values="presenze", fill_value=0)
-        )
-
-        # Ordina mesi in ordine cronologico
-        mesi_ordine = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
-        tabella_stl = tabella_stl.reindex(mesi_ordine)
-
-        # Aggiungi riga "Totale"
-        totale = pd.DataFrame(tabella_stl.sum()).T
-        totale.index = ["Totale"]
-        tabella_stl = pd.concat([tabella_stl, totale])
-
-        # Se due anni selezionati → calcola differenza e variazione
         if len(anni_sel_stl) == 2:
-            anni_sorted = sorted(anni_sel_stl)
-            anno_prev, anno_recent = anni_sorted
+            anno_prev, anno_recent = sorted(anni_sel_stl)
+            stl_prev = stl_filtrata[stl_filtrata["anno"] == anno_prev]
+            stl_recent = stl_filtrata[stl_filtrata["anno"] == anno_recent]
 
-            tabella_stl["Differenza"] = tabella_stl[anno_recent] - tabella_stl[anno_prev]
-            tabella_stl["Variazione %"] = (
-                (tabella_stl["Differenza"] / tabella_stl[anno_prev].replace(0, pd.NA)) * 100
+            tot_pres_prev = stl_prev["presenze"].sum()
+            tot_pres_recent = stl_recent["presenze"].sum()
+            tot_arr_prev = stl_prev["arrivi"].sum()
+            tot_arr_recent = stl_recent["arrivi"].sum()
+
+            var_pres = ((tot_pres_recent - tot_pres_prev) / tot_pres_prev * 100) if tot_pres_prev else 0
+            var_arr = ((tot_arr_recent - tot_arr_prev) / tot_arr_prev * 100) if tot_arr_prev else 0
+
+            st.markdown("### 🔼 Variazioni complessive tra gli anni selezionati")
+            c1, c2 = st.columns(2)
+
+            color_pres = "green" if var_pres > 0 else ("red" if var_pres < 0 else "grey")
+            color_arr = "green" if var_arr > 0 else ("red" if var_arr < 0 else "grey")
+
+            c1.markdown(
+                f"<div style='font-size:20px;'><b>Presenze</b> {anno_recent} vs {anno_prev}: "
+                f"<span style='color:{color_pres};'>{var_pres:+.2f}%</span></div>",
+                unsafe_allow_html=True
             )
-
-            st.markdown(
-                f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come *{anno_recent} − {anno_prev}*."
+            c2.markdown(
+                f"<div style='font-size:20px;'><b>Arrivi</b> {anno_recent} vs {anno_prev}: "
+                f"<span style='color:{color_arr};'>{var_arr:+.2f}%</span></div>",
+                unsafe_allow_html=True
             )
-
-            def color_var(val):
-                if pd.isna(val):
-                    return "color: grey;"
-                elif val > 0:
-                    return "color: green; font-weight: bold;"
-                elif val < 0:
-                    return "color: red; font-weight: bold;"
-                else:
-                    return "color: grey;"
-
-            fmt = {}
-            for col in tabella_stl.columns:
-                if col == "Variazione %":
-                    fmt[col] = "{:.2f}%"
-                else:
-                    fmt[col] = "{:,.0f}".format
-
-            styled = (
-                tabella_stl.style.format(fmt, thousands=".")
-                .applymap(color_var, subset=["Variazione %"])
-            )
-
-            st.dataframe(styled)
-        else:
-            fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if tabella_stl[col].dtype != "O"}
-            st.dataframe(tabella_stl.style.format(fmt, thousands="."))
 
 # ======================
 # 🧾 FOOTER
