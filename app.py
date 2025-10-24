@@ -71,6 +71,69 @@ if not df_filtered.empty:
     st.plotly_chart(fig, use_container_width=True)
 
 # ======================
+# 📋 TABELLA CONFRONTO TRA ANNI E MESI – COMUNI
+# ======================
+st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (Comuni)")
+
+if not df_filtered.empty:
+    tabella_com = (
+        df_filtered.groupby(["anno", "mese"])["presenze"]
+        .sum()
+        .reset_index()
+        .pivot_table(index="mese", columns="anno", values="presenze", fill_value=0)
+    )
+
+    # Ordina mesi
+    mesi_ordine = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+    tabella_com = tabella_com.reindex(mesi_ordine)
+
+    # Aggiungi riga Totale
+    totale = pd.DataFrame(tabella_com.sum()).T
+    totale.index = ["Totale"]
+    tabella_com = pd.concat([tabella_com, totale])
+
+    # Se due anni selezionati → aggiungi differenze e variazioni %
+    if len(anno_sel) == 2:
+        anni_sorted = sorted(anno_sel)
+        anno_prev, anno_recent = anni_sorted
+
+        tabella_com["Differenza"] = tabella_com[anno_recent] - tabella_com[anno_prev]
+        tabella_com["Variazione %"] = (tabella_com["Differenza"] / tabella_com[anno_prev].replace(0, pd.NA)) * 100
+
+        st.markdown(
+            f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come *{anno_recent} − {anno_prev}*."
+        )
+
+        def color_var(val):
+            if pd.isna(val):
+                return "color: grey;"
+            elif val > 0:
+                return "color: green; font-weight: bold;"
+            elif val < 0:
+                return "color: red; font-weight: bold;"
+            else:
+                return "color: grey;"
+
+        fmt = {}
+        for col in tabella_com.columns:
+            if col == "Variazione %":
+                fmt[col] = "{:.2f}%"
+            else:
+                fmt[col] = "{:,.0f}".format
+
+        styled = (
+            tabella_com.style.format(fmt, thousands=".")
+            .applymap(color_var, subset=["Variazione %"])
+        )
+
+        st.dataframe(styled, use_container_width=True)
+    else:
+        fmt = {col: "{:,.0f}".format for col in tabella_com.columns if tabella_com[col].dtype != "O"}
+        st.dataframe(tabella_com.style.format(fmt, thousands="."), use_container_width=True)
+else:
+    st.info("Nessun dato disponibile per creare la tabella di confronto.")
+
+# ======================
 # 🏔️ PROVINCIA DI BELLUNO
 # ======================
 st.sidebar.markdown("---")
