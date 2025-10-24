@@ -73,7 +73,7 @@ if not df_filtered.empty:
 # ======================
 # 📋 TABELLA CONFRONTO TRA ANNI E MESI – COMUNI
 # ======================
-st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (Comuni)")
+st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni Presenze (Comuni)")
 
 if not df_filtered.empty:
     tabella_com = (
