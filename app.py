@@ -208,35 +208,6 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
             fmt = {col: "{:,.0f}".format for col in tabella_stl.columns if tabella_stl[col].dtype != "O"}
             st.dataframe(tabella_stl.style.format(fmt, thousands="."))
 
-        # ======================
-        # 📊 VARIAZIONE % IN ALTO (KPI)
-        # ======================
-        if len(anni_sel_stl) == 2:
-            anno_prev, anno_recent = sorted(anni_sel_stl)
-            stl_prev = stl_filtrata[stl_filtrata["anno"] == anno_prev]
-            stl_recent = stl_filtrata[stl_filtrata["anno"] == anno_recent]
-
-            tot_pres_prev = stl_prev["presenze"].sum()
-            tot_pres_recent = stl_recent["presenze"].sum()
-            tot_arr_prev = stl_prev["arrivi"].sum()
-            tot_arr_recent = stl_recent["arrivi"].sum()
-
-            var_pres = ((tot_pres_recent - tot_pres_prev) / tot_pres_prev * 100) if tot_pres_prev else 0
-            var_arr = ((tot_arr_recent - tot_arr_prev) / tot_arr_prev * 100) if tot_arr_prev else 0
-
-            st.markdown("### 🔼 Variazioni complessive tra gli anni selezionati")
-            c1, c2 = st.columns(2)
-            c1.metric(
-                f"Presenze: {anno_recent} vs {anno_prev}",
-                f"{var_pres:+.2f}%",
-                delta_color="normal"
-            )
-            c2.metric(
-                f"Arrivi: {anno_recent} vs {anno_prev}",
-                f"{var_arr:+.2f}%",
-                delta_color="normal"
-            )
-
 # ======================
 # 🧾 FOOTER
 # ======================
