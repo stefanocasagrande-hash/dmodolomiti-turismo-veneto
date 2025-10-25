@@ -157,17 +157,6 @@ if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
         st.plotly_chart(px.line(prov_filtrata, x="mese", y="presenze", color="anno", markers=True), use_container_width=True)
 
 # ======================
-# 🧾 FOOTER
-# ======================
-```)
-con il **nuovo codice seguente** 👇  
-Questo blocco include **grafici + tabella + variazioni**, tutto coerente con la metrica selezionata.
-
----
-
-### 🧩 CODICE CORRETTO PER BLOCCO STL
-```python
-# ======================
 # 🏞️ STL
 # ======================
 st.sidebar.markdown("---")
