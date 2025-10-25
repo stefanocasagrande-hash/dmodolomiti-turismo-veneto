@@ -97,6 +97,92 @@ chart = (
 st.altair_chart(chart, use_container_width=True)
 
 # ---------------------------------------------------------
+# CLASSIFICA DEI 10 PAESI CON PIÙ PRESENZE
+# ---------------------------------------------------------
+st.subheader("🏆 Classifica dei 10 Paesi con più presenze")
+
+# Filtra solo per anno/i selezionato/i, indipendentemente dai Paesi scelti
+df_top = (
+    df_long[df_long["Anno"].isin(anni)]
+    .copy()
+)
+
+# Rimuovi eventuali righe Totale o simili
+df_top = df_top[~df_top["Paese"].str.contains("Totale", case=False, na=False)]
+
+# Aggrega per Paese
+df_top = (
+    df_top.groupby(["Anno", "Paese"], as_index=False)["Presenze"]
+    .sum()
+    .sort_values(["Anno", "Presenze"], ascending=[True, False])
+)
+
+# Prendi solo i top 10 per ciascun anno
+df_top = df_top.groupby("Anno").head(10)
+
+# Aggiungi colonna "Posizione"
+df_top["Posizione"] = df_top.groupby("Anno")["Presenze"].rank(method="first", ascending=False).astype(int)
+
+# Ordina per anno e posizione
+df_top = df_top.sort_values(["Anno", "Posizione"])
+
+# --- Visualizzazione in stile classifica ---
+import streamlit.components.v1 as components
+
+for anno in sorted(df_top["Anno"].unique()):
+    subset = df_top[df_top["Anno"] == anno]
+
+    st.markdown(f"### 🗓️ Anno {anno}")
+
+    # Crea una piccola tabella HTML con stile personalizzato
+    table_html = """
+    <style>
+    .ranking-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Inter', sans-serif;
+        font-size: 15px;
+    }
+    .ranking-table th {
+        background-color: #004c6d;
+        color: white;
+        padding: 8px;
+        text-align: left;
+    }
+    .ranking-table td {
+        padding: 8px;
+        border-bottom: 1px solid #ddd;
+    }
+    .ranking-table tr:nth-child(even) {background-color: #f9f9f9;}
+    .ranking-table tr:hover {background-color: #f1f1f1;}
+    .position {
+        font-weight: bold;
+        color: #004c6d;
+        text-align: center;
+        width: 50px;
+    }
+    </style>
+    <table class="ranking-table">
+        <thead>
+            <tr><th class="position">#</th><th>Paese</th><th style="text-align:right;">Presenze</th></tr>
+        </thead>
+        <tbody>
+    """
+
+    for _, row in subset.iterrows():
+        table_html += f"""
+        <tr>
+            <td class="position">{row['Posizione']}</td>
+            <td>{row['Paese']}</td>
+            <td style="text-align:right;">{row['Presenze']:,}</td>
+        </tr>
+        """
+
+    table_html += "</tbody></table>"
+
+    components.html(table_html, height=min(600, 60 + len(subset) * 30))
+
+# ---------------------------------------------------------
 # TABELLA COMPARATIVA
 # ---------------------------------------------------------
 if len(anni) >= 2:
