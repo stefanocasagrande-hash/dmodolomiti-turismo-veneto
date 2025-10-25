@@ -97,6 +97,42 @@ chart = (
 st.altair_chart(chart, use_container_width=True)
 
 # ---------------------------------------------------------
+# TABELLA COMPARATIVA
+# ---------------------------------------------------------
+if len(anni) >= 2:
+    st.subheader("📊 Differenze tra anni selezionati")
+
+    pivot = df_filtered.pivot_table(
+        index=["Mese", "Paese"],
+        columns="Anno",
+        values="Presenze",
+        aggfunc="sum"
+    ).reset_index()
+
+    try:
+        anni_sorted = sorted(anni)
+        if len(anni_sorted) == 2:
+            a1, a2 = anni_sorted
+            pivot["Differenza assoluta"] = pivot[a2] - pivot[a1]
+            pivot["Differenza %"] = ((pivot["Differenza assoluta"] / pivot[a1].replace(0, pd.NA)) * 100).round(2)
+        else:
+            for i in range(1, len(anni_sorted)):
+                prev, curr = anni_sorted[i - 1], anni_sorted[i]
+                pivot[f"Differenza {prev}-{curr}"] = pivot[curr] - pivot[prev]
+                pivot[f"Differenza % {prev}-{curr}"] = ((pivot[curr] - pivot[prev]) / pivot[prev].replace(0, pd.NA) * 100).round(2)
+    except Exception as e:
+        st.error(f"Errore nel calcolo delle differenze: {e}")
+
+    # Correzione fillna solo per colonne numeriche
+    for col in pivot.select_dtypes(include="number").columns:
+        pivot[col] = pivot[col].fillna(0)
+
+    st.dataframe(pivot)
+
+else:
+    st.info("Seleziona almeno due anni per visualizzare le differenze.")
+
+# ---------------------------------------------------------
 # CLASSIFICA DEI 10 PAESI CON PIÙ PRESENZE
 # ---------------------------------------------------------
 st.subheader("🏆 Classifica dei 10 Paesi con più presenze")
@@ -183,42 +219,6 @@ for anno in sorted(df_top["Anno"].unique()):
     table_html += "</tbody></table>"
 
     components.html(table_html, height=min(600, 60 + len(subset) * 30))
-
-# ---------------------------------------------------------
-# TABELLA COMPARATIVA
-# ---------------------------------------------------------
-if len(anni) >= 2:
-    st.subheader("📊 Differenze tra anni selezionati")
-
-    pivot = df_filtered.pivot_table(
-        index=["Mese", "Paese"],
-        columns="Anno",
-        values="Presenze",
-        aggfunc="sum"
-    ).reset_index()
-
-    try:
-        anni_sorted = sorted(anni)
-        if len(anni_sorted) == 2:
-            a1, a2 = anni_sorted
-            pivot["Differenza assoluta"] = pivot[a2] - pivot[a1]
-            pivot["Differenza %"] = ((pivot["Differenza assoluta"] / pivot[a1].replace(0, pd.NA)) * 100).round(2)
-        else:
-            for i in range(1, len(anni_sorted)):
-                prev, curr = anni_sorted[i - 1], anni_sorted[i]
-                pivot[f"Differenza {prev}-{curr}"] = pivot[curr] - pivot[prev]
-                pivot[f"Differenza % {prev}-{curr}"] = ((pivot[curr] - pivot[prev]) / pivot[prev].replace(0, pd.NA) * 100).round(2)
-    except Exception as e:
-        st.error(f"Errore nel calcolo delle differenze: {e}")
-
-    # Correzione fillna solo per colonne numeriche
-    for col in pivot.select_dtypes(include="number").columns:
-        pivot[col] = pivot[col].fillna(0)
-
-    st.dataframe(pivot)
-
-else:
-    st.info("Seleziona almeno due anni per visualizzare le differenze.")
 
 # ---------------------------------------------------------
 # FOOTER
