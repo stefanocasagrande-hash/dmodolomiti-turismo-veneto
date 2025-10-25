@@ -77,47 +77,6 @@ if df_filtered.empty:
     st.stop()
 
 # ---------------------------------------------------------
-# GESTIONE CONFRONTO PARZIALE PER L'ULTIMO ANNO DISPONIBILE
-# ---------------------------------------------------------
-ultimo_anno = int(df_long["Anno"].max())
-
-# Calcola i mesi che hanno dati > 0 per l'ultimo anno
-mesi_attivi_ultimo_anno_df = (
-    df_long[df_long["Anno"] == ultimo_anno]
-    .groupby("Mese", as_index=False)["Presenze"]
-    .sum()
-)
-
-# Lista dei mesi con dati positivi (in ordine categorico)
-mesi_attivi_ultimo_anno = (
-    mesi_attivi_ultimo_anno_df[mesi_attivi_ultimo_anno_df["Presenze"] > 0]["Mese"]
-    .tolist()
-)
-
-# Se l'ultimo anno è tra gli anni selezionati, limitiamo il confronto ai soli mesi disponibili
-if ultimo_anno in anni:
-    if len(mesi_attivi_ultimo_anno) == 0:
-        st.info(f"ℹ️ L'anno {ultimo_anno} non contiene dati utili per il confronto.")
-    else:
-        # Intersezione tra i mesi già selezionati dall'utente e i mesi effettivamente presenti nell'ultimo anno
-        mesi_confronto = [m for m in mesi if m in mesi_attivi_ultimo_anno]
-
-        # Se l'intersezione è vuota (es. l'utente ha deselezionato i mesi correnti),
-        # usiamo comunque i mesi disponibili nell'ultimo anno per fare il confronto
-        if not mesi_confronto:
-            mesi_confronto = mesi_attivi_ultimo_anno
-
-        # Applica il filtro ai dati visualizzati (grafico e tabella)
-        df_filtered = df_filtered[df_filtered["Mese"].isin(mesi_confronto)]
-
-        # Messaggio informativo con l'ultimo mese disponibile
-        ultimo_mese_disponibile = mesi_attivi_ultimo_anno[-1]
-        st.info(
-            f"ℹ️ L'anno {ultimo_anno} contiene dati fino a **{ultimo_mese_disponibile}**. "
-            "I confronti con gli anni precedenti riguarderanno solo i mesi disponibili."
-        )
-
-# ---------------------------------------------------------
 # GRAFICO PRINCIPALE
 # ---------------------------------------------------------
 st.subheader("📈 Andamento mensile delle presenze")
