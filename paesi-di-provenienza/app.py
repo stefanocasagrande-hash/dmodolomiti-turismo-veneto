@@ -77,6 +77,53 @@ if df_filtered.empty:
     st.stop()
 
 # ---------------------------------------------------------
+# SINTESI CONFRONTO TRA ULTIMO ANNO E ANNO PRECEDENTE
+# ---------------------------------------------------------
+ultimo_anno = int(df_long["Anno"].max())
+
+# Mostra la sezione solo se l'utente ha selezionato l'ultimo anno e almeno un altro
+if ultimo_anno in anni and len(anni) >= 2:
+    anno_precedente = max([a for a in anni if a < ultimo_anno])
+
+    # Trova i mesi con dati > 0 nell'ultimo anno
+    mesi_attivi = (
+        df_long[df_long["Anno"] == ultimo_anno]
+        .groupby("Mese", as_index=False)["Presenze"]
+        .sum()
+    )
+    mesi_attivi = mesi_attivi[mesi_attivi["Presenze"] > 0]["Mese"].tolist()
+
+    if len(mesi_attivi) > 0:
+        # Somma le presenze solo per i mesi disponibili dell'ultimo anno e dell'anno precedente
+        somma_ultimo = (
+            df_long[(df_long["Anno"] == ultimo_anno) & (df_long["Mese"].isin(mesi_attivi))]["Presenze"].sum()
+        )
+        somma_precedente = (
+            df_long[(df_long["Anno"] == anno_precedente) & (df_long["Mese"].isin(mesi_attivi))]["Presenze"].sum()
+        )
+
+        diff_assoluta = somma_ultimo - somma_precedente
+        diff_percentuale = (
+            (diff_assoluta / somma_precedente * 100) if somma_precedente != 0 else None
+        )
+
+        # Sezione visiva compatta
+        st.markdown("### 📊 Confronto rapido tra anni (mesi disponibili)")
+        st.markdown(
+            f"""
+            <div style="background-color:#f4f9ff;padding:15px;border-radius:10px;border-left:5px solid #004c6d;">
+                <b>Periodo considerato:</b> Gennaio–{mesi_attivi[-1]}<br>
+                <b>Confronto:</b> {anno_precedente} → {ultimo_anno}<br><br>
+                <b>Presenze {anno_precedente}:</b> {somma_precedente:,.0f}<br>
+                <b>Presenze {ultimo_anno}:</b> {somma_ultimo:,.0f}<br>
+                <b>Variazione assoluta:</b> {diff_assoluta:+,}<br>
+                <b>Variazione percentuale:</b> {diff_percentuale:+.2f}% 
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+# ---------------------------------------------------------
 # GRAFICO PRINCIPALE
 # ---------------------------------------------------------
 st.subheader("📈 Andamento mensile delle presenze")
