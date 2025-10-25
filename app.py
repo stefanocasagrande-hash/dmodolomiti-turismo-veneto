@@ -235,7 +235,7 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
         fig_pre.update_layout(xaxis=dict(categoryorder="array", categoryarray=mesi_validi))
         st.plotly_chart(fig_pre, use_container_width=True)
 
-        # ======================
+# ======================
 # 📊 TABELLA CONFRONTO TRA ANNI E MESI (STL)
 # ======================
 st.subheader(f"📊 Confronto tra anni e mesi – Differenze e variazioni (STL {sel_metrica})")
