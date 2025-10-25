@@ -77,6 +77,35 @@ if df_filtered.empty:
     st.stop()
 
 # ---------------------------------------------------------
+# GESTIONE CONFRONTO PARZIALE PER L'ULTIMO ANNO DISPONIBILE
+# ---------------------------------------------------------
+ultimo_anno = df_long["Anno"].max()
+
+# Identifica i mesi realmente alimentati nell'ultimo anno
+mesi_attivi_ultimo_anno = (
+    df_long[df_long["Anno"] == ultimo_anno]
+    .groupby("Mese")["Presenze"]
+    .sum()
+    .reset_index()
+)
+mesi_attivi_ultimo_anno = mesi_attivi_ultimo_anno[mese_attivi_ultimo_anno["Presenze"] > 0]["Mese"].tolist()
+
+# Se l'utente ha selezionato l'ultimo anno, filtra i mesi automaticamente
+if ultimo_anno in anni:
+    # Se è l'unico anno selezionato o è incluso in un confronto
+    mesi_confronto = [
+        m for m in mesi if (m in mesi_attivi_ultimo_anno or len(anni) > 1)
+    ]
+    df_filtered = df_filtered[df_filtered["Mese"].isin(mesi_confronto)]
+
+    # Mostra un messaggio informativo
+    if len(mesi_attivi_ultimo_anno) < len(df_long["Mese"].cat.categories):
+        st.info(
+            f"ℹ️ L'anno {ultimo_anno} contiene dati solo fino a **{mesi_attivi_ultimo_anno[-1]}**. "
+            f"I confronti con gli anni precedenti riguardano solo i mesi disponibili."
+        )
+
+# ---------------------------------------------------------
 # GRAFICO PRINCIPALE
 # ---------------------------------------------------------
 st.subheader("📈 Andamento mensile delle presenze")
