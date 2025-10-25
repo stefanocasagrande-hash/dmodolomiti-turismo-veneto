@@ -63,6 +63,18 @@ with col3:
         default=[m for m in df_long["Mese"].cat.categories if m in df_long["Mese"].unique()]
     )
 
+# -- Top 10 Paesi per presenze (anno selezionato)
+if anni:
+    anno_sel = anni  # se selezionati più anni, possiamo fare somma aggregata
+    df_top = (
+        df_long[df_long["Anno"].isin(anno_sel)]
+        .groupby("Paese", as_index=False)["Presenze"].sum()
+        .sort_values("Presenze", ascending=False)
+        .head(10)
+    )
+    st.subheader(f"🏆 Top 10 Paesi – anno/i selezionato/i {', '.join(map(str, anno_sel))}")
+    st.bar_chart(df_top.set_index("Paese"), x=None, y="Presenze", use_container_width=True)
+
 # ---------------------------------------------------------
 # FILTRAGGIO
 # ---------------------------------------------------------
