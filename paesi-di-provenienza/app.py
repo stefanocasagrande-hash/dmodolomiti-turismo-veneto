@@ -172,7 +172,9 @@ for anno in sorted(df_top["Anno"].unique()):
     for _, row in subset.iterrows():
         table_html += f"""
         <tr>
-            <td class="position">{row['Posizione']}</td>
+            <td class="position">
+    {"🥇" if row['Posizione']==1 else "🥈" if row['Posizione']==2 else "🥉" if row['Posizione']==3 else row['Posizione']}
+</td>
             <td>{row['Paese']}</td>
             <td style="text-align:right;">{row['Presenze']:,}</td>
         </tr>
