@@ -142,7 +142,17 @@ if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
         st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
         anni_prov = sorted(provincia["anno"].unique())
         anni_sel_prov = st.sidebar.multiselect("Anno (Provincia)", anni_prov, default=[anni_prov[-1]])
-        prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)]
+        prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)].copy()
+
+        # 🔍 Rimuove eventuali righe dove "mese" contiene "Totale"
+        prov_filtrata["mese"] = prov_filtrata["mese"].astype(str).str.strip()
+        prov_filtrata = prov_filtrata[~prov_filtrata["mese"].str.lower().str.contains(r"^tot")]
+        
+        # 🔠 Ordina i mesi da Gennaio a Dicembre
+        mesi_validi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+        prov_filtrata["mese"] = pd.Categorical(prov_filtrata["mese"], categories=mesi_validi, ordered=True)
+        prov_filtrata = prov_filtrata.sort_values(["anno", "mese"])
+
 
         cols = st.columns(len(anni_sel_prov))
         for i, anno in enumerate(anni_sel_prov):
