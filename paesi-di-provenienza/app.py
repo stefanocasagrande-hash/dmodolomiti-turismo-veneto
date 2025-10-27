@@ -283,12 +283,14 @@ for anno in sorted(df_top["Anno"].unique()):
     components.html(table_html, height=min(600, 60 + len(subset) * 30))
 
 # ---------------------------------------------------------
-# 🥇 TOP 5 PAESI CON MAGGIOR CRESCITA PERCENTUALE
+# 🥇 TOP 5 PAESI CON MAGGIOR CRESCITA PERCENTUALE (robusto)
 # ---------------------------------------------------------
+import numpy as np  # assicurati che sia importato in alto insieme agli altri import
+
 if ultimo_anno in anni and len(anni) >= 2:
     anno_precedente = max([a for a in anni if a < ultimo_anno])
 
-    # Trova mesi attivi dell'ultimo anno
+    # Trova mesi attivi dell'ultimo anno (Presenze > 0)
     mesi_attivi = (
         df_long[df_long["Anno"] == ultimo_anno]
         .groupby("Mese", as_index=False)["Presenze"].sum()
@@ -303,44 +305,64 @@ if ultimo_anno in anni and len(anni) >= 2:
             .sum()
         )
 
-        # Pivot per avere colonne anni
-        pivot_growth = df_confronto.pivot(index="Paese", columns="Anno", values="Presenze").fillna(0)
-        pivot_growth["Diff_assoluta"] = pivot_growth[ultimo_anno] - pivot_growth[anno_precedente]
-        pivot_growth["Diff_percentuale"] = np.where(
-            pivot_growth[anno_precedente] != 0,
-            (pivot_growth["Diff_assoluta"] / pivot_growth[anno_precedente]) * 100,
-            np.nan
-        )
+        if df_confronto.empty:
+            st.info("Nessun dato disponibile per il confronto crescita sui mesi attivi.")
+        else:
+            # Pivot per avere colonne anni (se manca un anno per un Paese -> 0)
+            pivot_growth = df_confronto.pivot(index="Paese", columns="Anno", values="Presenze").fillna(0)
 
-        # Prendi solo le crescite positive e ordina
-        top5_crescita = (
-            pivot_growth[pivot_growth["Diff_percentuale"] > 0]
-            .sort_values("Diff_percentuale", ascending=False)
-            .head(5)
-        )
+            # Se per qualche motivo mancano le colonne anni, creale con zeri
+            for a in (anno_precedente, ultimo_anno):
+                if a not in pivot_growth.columns:
+                    pivot_growth[a] = 0
 
-        # Stile per evidenziare le variazioni
-        def color_growth(val):
-            if pd.isna(val):
-                return "color:#7f8c8d;"
-            if val > 0:
-                return "color:#2ecc71; font-weight:bold;"
-            elif val < 0:
-                return "color:#e74c3c; font-weight:bold;"
+            pivot_growth["Diff_assoluta"] = pivot_growth[ultimo_anno] - pivot_growth[anno_precedente]
+
+            # Evita divisione per zero: se precedente==0 e attuale>0 consideriamo +inf o NaN; qui mettiamo NaN
+            pivot_growth["Diff_percentuale"] = np.where(
+                pivot_growth[anno_precedente] != 0,
+                (pivot_growth["Diff_assoluta"] / pivot_growth[anno_precedente]) * 100,
+                np.nan
+            )
+
+            # Prendi solo le crescite positive (puoi decidere di includere anche i casi con precedente==0)
+            top5_crescita = (
+                pivot_growth[pivot_growth["Diff_percentuale"] > 0]
+                .sort_values("Diff_percentuale", ascending=False)
+                .head(5)
+                .copy()
+            )
+
+            if top5_crescita.empty:
+                st.info("Nessuna crescita percentuale positiva sui mesi considerati.")
             else:
-                return "color:#7f8c8d; font-weight:bold;"
+                # Formattazione e coloring
+                def color_growth(val):
+                    if pd.isna(val):
+                        return "color:#7f8c8d;"
+                    if val > 0:
+                        return "color:#2ecc71; font-weight:bold;"
+                    elif val < 0:
+                        return "color:#e74c3c; font-weight:bold;"
+                    else:
+                        return "color:#7f8c8d; font-weight:bold;"
 
-        st.markdown("### 🚀 Top 5 Paesi con maggiore crescita percentuale")
-        st.markdown(
-            f"<div style='color:#777;font-size:0.9em;'>Periodo considerato: Gennaio–{mesi_attivi[-1]} ({anno_precedente} → {ultimo_anno})</div>",
-            unsafe_allow_html=True,
-        )
-        st.dataframe(
-            top5_crescita[["Diff_percentuale", "Diff_assoluta"]]
-            .style.format({"Diff_percentuale": "{:+.2f} %", "Diff_assoluta": "{:+,.0f}"})
-            .applymap(color_growth, subset=["Diff_percentuale"]),
-            use_container_width=True
-        )
+                st.markdown("### 🚀 Top 5 Paesi con maggiore crescita percentuale")
+                st.markdown(
+                    f"<div style='color:#777;font-size:0.9em;'>Periodo considerato: Gennaio–{mesi_attivi[-1]} ({anno_precedente} → {ultimo_anno})</div>",
+                    unsafe_allow_html=True,
+                )
+
+                styled = (
+                    top5_crescita[["Diff_percentuale", "Diff_assoluta"]]
+                    .rename(columns={"Diff_percentuale": "Δ %", "Diff_assoluta": "Δ assoluta"})
+                )
+
+                # formatta i numeri e applica colore su Δ %
+                styled_df = styled.style.format({"Δ %": "{:+.2f} %", "Δ assoluta": "{:+,.0f}"})
+                styled_df = styled_df.applymap(color_growth, subset=["Δ %"])
+
+                st.dataframe(styled_df, use_container_width=True)
 
 # ---------------------------------------------------------
 # FOOTER
