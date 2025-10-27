@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import altair as alt
 import pandas as pd
+import numpy as np
 from etl import load_data
 
 # ---------------------------------------------------------
