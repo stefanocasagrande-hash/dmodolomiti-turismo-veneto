@@ -216,7 +216,35 @@ if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
                 )
 
             st.markdown(
-                f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate co
+                f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come *{anno_recent} − {anno_prev}*."
+            )
+
+            # Formattazione e colori
+            def color_var(val):
+                if pd.isna(val):
+                    return "color: grey;"
+                elif val > 0:
+                    return "color: green; font-weight: bold;"
+                elif val < 0:
+                    return "color: red; font-weight: bold;"
+                else:
+                    return "color: grey;"
+
+            fmt = {}
+            for col in tabella_prov.columns:
+                if col[1] == "Variazione %":
+                    fmt[col] = "{:.2f}%"
+                else:
+                    fmt[col] = "{:,.0f}".format
+
+            styled = (
+                tabella_prov.style.format(fmt, thousands=".")
+                .applymap(color_var, subset=[c for c in tabella_prov.columns if c[1] == "Variazione %"])
+            )
+            st.dataframe(styled, use_container_width=True)
+        else:
+            fmt = {col: "{:,.0f}".format for col in tabella_prov.columns}
+            st.dataframe(tabella_prov.style.format(fmt, thousands="."), use_container_width=True)
 
 # ======================
 # 🏞️ STL
