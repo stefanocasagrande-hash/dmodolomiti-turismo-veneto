@@ -140,41 +140,64 @@ st.sidebar.markdown("---")
 if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
     if not provincia.empty:
         st.header("🏔️ Provincia di Belluno – Arrivi e Presenze mensili")
+
+        # Filtri anni
         anni_prov = sorted(provincia["anno"].unique())
         anni_sel_prov = st.sidebar.multiselect("Anno (Provincia)", anni_prov, default=[anni_prov[-1]])
-        prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)]
 
+        # Filtra dati e rimuovi righe "Totale"
+        prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)].copy()
+        prov_filtrata["mese"] = prov_filtrata["mese"].astype(str).str.strip()
+        prov_filtrata = prov_filtrata[~prov_filtrata["mese"].str.lower().str.contains(r"^tot")]
+
+        # Ordina mesi in ordine cronologico
+        mesi_ordine = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
+        prov_filtrata["mese"] = pd.Categorical(prov_filtrata["mese"].str[:3].str.capitalize(), categories=mesi_ordine, ordered=True)
+        prov_filtrata = prov_filtrata.sort_values(["anno", "mese"])
+
+        # ======================
+        # 📈 INDICATORI PRINCIPALI
+        # ======================
+        st.subheader("📈 Indicatori Provincia di Belluno")
         cols = st.columns(len(anni_sel_prov))
         for i, anno in enumerate(anni_sel_prov):
-            tot_arr = int(prov_filtrata[prov_filtrata["anno"] == anno]["arrivi"].sum())
-            tot_pre = int(prov_filtrata[prov_filtrata["anno"] == anno]["presenze"].sum())
+            dati_anno = prov_filtrata[prov_filtrata["anno"] == anno]
+            tot_arr = int(dati_anno["arrivi"].sum())
+            tot_pre = int(dati_anno["presenze"].sum())
             cols[i].metric(f"Arrivi {anno}", f"{tot_arr:,}".replace(",", "."))
             cols[i].metric(f"Presenze {anno}", f"{tot_pre:,}".replace(",", "."))
 
+        # ======================
+        # 📊 GRAFICI ANDAMENTO MENSILE
+        # ======================
         st.subheader("📈 Andamento Arrivi Mensili")
-        st.plotly_chart(px.line(prov_filtrata, x="mese", y="arrivi", color="anno", markers=True), use_container_width=True)
+        fig_arr = px.line(prov_filtrata, x="mese", y="arrivi", color="anno", markers=True)
+        fig_arr.update_layout(
+            xaxis=dict(categoryorder="array", categoryarray=mesi_ordine),
+            legend_title_text="Anno"
+        )
+        st.plotly_chart(fig_arr, use_container_width=True)
+
         st.subheader("📈 Andamento Presenze Mensili")
-        st.plotly_chart(px.line(prov_filtrata, x="mese", y="presenze", color="anno", markers=True), use_container_width=True)
+        fig_pre = px.line(prov_filtrata, x="mese", y="presenze", color="anno", markers=True)
+        fig_pre.update_layout(
+            xaxis=dict(categoryorder="array", categoryarray=mesi_ordine),
+            legend_title_text="Anno"
+        )
+        st.plotly_chart(fig_pre, use_container_width=True)
 
         # ======================
         # 📋 TABELLA CONFRONTO TRA ANNI E MESI (Provincia di Belluno)
         # ======================
         st.subheader("📊 Confronto tra anni e mesi – Differenze e variazioni (Provincia)")
 
-        # Prepara la tabella pivot
         tab_prov = (
             prov_filtrata.groupby(["anno", "mese"])[["arrivi", "presenze"]]
             .sum()
             .reset_index()
         )
 
-        # Rimuovi eventuali righe dove 'mese' contiene 'Totale'
-        tab_prov = tab_prov[~tab_prov["mese"].astype(str).str.strip().str.lower().str.contains(r"^tot")]
-
-        # Ordina i mesi
-        mesi_ordine = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
-        tab_prov["mese"] = pd.Categorical(tab_prov["mese"].str[:3].str.capitalize(), categories=mesi_ordine, ordered=True)
-
+        # Pivot per tabella comparativa
         tabella_prov = tab_prov.pivot_table(index="mese", columns="anno", values=["arrivi", "presenze"], fill_value=0)
 
         # Aggiungi riga Totale
@@ -182,6 +205,7 @@ if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
         totale.index = ["Totale"]
         tabella_prov = pd.concat([tabella_prov, totale])
 
+        # Se due anni selezionati → differenze e variazioni %
         if len(anni_sel_prov) == 2:
             anno_prev, anno_recent = sorted(anni_sel_prov)
             for met in ["arrivi", "presenze"]:
@@ -190,36 +214,9 @@ if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
                     (tabella_prov[(met, "Differenza")] /
                      tabella_prov[(met, anno_prev)].replace(0, pd.NA)) * 100
                 )
+
             st.markdown(
-                f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate come *{anno_recent} − {anno_prev}*."
-            )
-
-            # Formattazione
-            fmt = {}
-            for col in tabella_prov.columns:
-                if col[1] == "Variazione %":
-                    fmt[col] = "{:.2f}%"
-                else:
-                    fmt[col] = "{:,.0f}".format
-
-            def color_var(val):
-                if pd.isna(val):
-                    return "color: grey;"
-                elif val > 0:
-                    return "color: green; font-weight: bold;"
-                elif val < 0:
-                    return "color: red; font-weight: bold;"
-                else:
-                    return "color: grey;"
-
-            styled = (
-                tabella_prov.style.format(fmt, thousands=".")
-                .applymap(color_var, subset=[c for c in tabella_prov.columns if c[1] == "Variazione %"])
-            )
-            st.dataframe(styled, use_container_width=True)
-        else:
-            fmt = {col: "{:,.0f}".format for col in tabella_prov.columns}
-            st.dataframe(tabella_prov.style.format(fmt, thousands="."), use_container_width=True)
+                f"**Confronto tra {anno_recent} e {anno_prev}:** differenze e variazioni calcolate co
 
 # ======================
 # 🏞️ STL
