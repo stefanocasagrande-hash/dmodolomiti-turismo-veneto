@@ -638,7 +638,9 @@ df_external["Indice_opportunità"] = (
     df_external["Crescita_PIL"] * 0.15
 ) * 100
 
-# --- STEP 5: Visualizza classifica ---
+# ---------------------------------------------------------
+# 🧭 Top 10 Mercati da Sviluppare (visualizzazione robusta, fallback senza Styler)
+# ---------------------------------------------------------
 if not df_external.empty:
     df_rank = (
         df_external.sort_values("Indice_opportunità", ascending=False)
@@ -650,14 +652,42 @@ if not df_external.empty:
         })
     )
 
+    # Colonne richieste
+    wanted_cols = ["Paese", "🧭 Indice Opportunità (0–100)",
+                   "Interesse_Dolomiti", "Interesse_Veneto",
+                   "PIL pro capite (norm)", "Crescita economica (norm)"]
+
+    # Assicuriamoci che le colonne esistano
+    for c in wanted_cols:
+        if c not in df_rank.columns:
+            df_rank[c] = 0 if c != "Paese" else ""
+
+    # Se ci sono NaN, li sostituiamo con 0 per numeriche
+    df_rank = df_rank[wanted_cols].copy()
+    numeric_cols = ["🧭 Indice Opportunità (0–100)", "Interesse_Dolomiti", "Interesse_Veneto",
+                    "PIL pro capite (norm)", "Crescita economica (norm)"]
+    for c in numeric_cols:
+        df_rank[c] = pd.to_numeric(df_rank[c], errors="coerce").fillna(0.0)
+
+    # Prepara una versione *display* con formattazione testuale (sicura)
+    df_display = df_rank.copy()
+    df_display["🧭 Indice Opportunità (0–100)"] = df_display["🧭 Indice Opportunità (0–100)"].map(lambda x: f"{x:.2f}")
+    df_display["Interesse_Dolomiti"] = df_display["Interesse_Dolomiti"].map(lambda x: f"{x:.2f}")
+    df_display["Interesse_Veneto"] = df_display["Interesse_Veneto"].map(lambda x: f"{x:.2f}")
+    df_display["PIL pro capite (norm)"] = df_display["PIL pro capite (norm)"].map(lambda x: f"{x:.2f}")
+    df_display["Crescita economica (norm)"] = df_display["Crescita economica (norm)"].map(lambda x: f"{x:.2f}")
+
     st.markdown("#### 🧭 Top 10 Mercati da Sviluppare (analisi integrata interna + esterna)")
-    st.dataframe(
-        df_rank[["Paese", "🧭 Indice Opportunità (0–100)", "Interesse_Dolomiti", "Interesse_Veneto", "PIL pro capite (norm)", "Crescita economica (norm)"]]
-        .fillna(0)
-        .style.format("{:.2f}")
-        .background_gradient(subset=["🧭 Indice Opportunità (0–100)"], cmap="Blues"),
-        use_container_width=True,
-    )
+    st.dataframe(df_display, use_container_width=True)
+
+    # Piccolo debug (rimuovibile): mostra colonne e tipi originali
+    st.caption("Debug colonne (rimuovi in produzione):")
+    col_info = pd.DataFrame({
+        "colonna": df_rank.columns,
+        "dtype": [str(dt) for dt in df_rank.dtypes.values]
+    })
+    st.table(col_info)
+
 else:
     st.info("⚠️ Nessun dato disponibile per calcolare l'indice di opportunità.")
 
