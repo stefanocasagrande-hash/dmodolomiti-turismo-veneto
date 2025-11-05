@@ -200,36 +200,129 @@ for anno in sorted(df_top["Anno"].unique()):
     components.html(html, height=min(600, 60 + len(subset) * 30))
 
 # ---------------------------------------------------------
-# 🤖 ANALISI AUTOMATICA DEI PATTERN TURISTICI (MESI COMPARABILI)
+# 🔍 ANALISI PATTERN E MERCATI PROMETTENTI (mesi comparabili)
 # ---------------------------------------------------------
-st.markdown("### 🤖 Analisi automatica dei pattern turistici")
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
-pattern_results = []
+# 🧭 Introduzione esplicativa
+st.markdown("""
+### 🔍 Analisi dei pattern e mercati promettenti
+Questa sezione analizza **l’andamento delle presenze turistiche per ciascun Paese**, considerando solo i **mesi effettivamente alimentati nell’ultimo anno disponibile**.  
+In questo modo il confronto tra anni rimane **omogeneo e realistico**, evitando distorsioni dovute a mesi mancanti.
+""")
+
+# Individua l'anno più recente e i mesi alimentati
 ultimo_anno = int(df_long["Anno"].max())
 mesi_attivi_ultimo = (
     df_long[df_long["Anno"] == ultimo_anno]
-    .groupby("Mese", as_index=False)["Presenze"].sum()
+    .groupby("Mese", as_index=False)["Presenze"]
+    .sum()
 )
 mesi_attivi_ultimo = mesi_attivi_ultimo[mesi_attivi_ultimo["Presenze"] > 0]["Mese"].tolist()
 
+paesi_analisi = []
 for paese, dfp in df_long.groupby("Paese"):
+    # Considera solo i mesi effettivamente alimentati nell'ultimo anno
+    dfp_filtrato = dfp[dfp["Mese"].isin(mesi_attivi_ultimo)]
+
+    # Calcola le presenze totali per ogni anno (stesso intervallo di mesi)
+    trend_data = (
+        dfp_filtrato.groupby("Anno")["Presenze"].sum().reset_index().sort_values("Anno")
+    )
+
+    if trend_data["Anno"].nunique() >= 3:
+        X = trend_data["Anno"].values.reshape(-1, 1)
+        y = trend_data["Presenze"].values
+        model = LinearRegression().fit(X, y)
+        slope = model.coef_[0]  # crescita media annua (mesi comparabili)
+
+        # variazione % ultimo anno vs precedente (solo mesi disponibili)
+        if len(y) > 1 and y[-2] != 0:
+            pct_growth_recent = (y[-1] - y[-2]) / y[-2] * 100
+        else:
+            pct_growth_recent = np.nan
+
+        paesi_analisi.append(
+            {
+                "Paese": paese,
+                "Trend medio (mesi attivi)": slope,
+                "Variazione % ultimo anno": pct_growth_recent,
+                "Presenze ultimo anno (mesi attivi)": y[-1],
+            }
+        )
+
+df_pattern = pd.DataFrame(paesi_analisi)
+
+# Calcolo indice di potenziale combinato (normalizzato)
+if not df_pattern.empty:
+    df_pattern["Indice potenziale"] = (
+        (df_pattern["Trend medio (mesi attivi)"].rank(pct=True) * 0.5)
+        + (df_pattern["Variazione % ultimo anno"].rank(pct=True) * 0.5)
+    ) * 100
+
+    df_pattern = df_pattern.sort_values("Indice potenziale", ascending=False)
+
+    st.markdown(f"""
+#### 📊 Valutazione quantitativa dei mercati
+I calcoli considerano solo i mesi disponibili nell’ultimo anno (**{mesi_attivi_ultimo[0]}–{mesi_attivi_ultimo[-1]}**).  
+L’indice di potenziale combina **trend di crescita** e **variazione percentuale recente** per evidenziare i mercati più dinamici.
+""")
+
+    st.dataframe(
+        df_pattern.head(10)
+        .style.format(
+            {
+                "Trend medio (mesi attivi)": "{:,.0f}",
+                "Variazione % ultimo anno": "{:+.2f} %",
+                "Indice potenziale": "{:.1f}",
+            }
+        )
+        .background_gradient(subset=["Indice potenziale"], cmap="Greens"),
+        use_container_width=True,
+    )
+else:
+    st.info("Non ci sono abbastanza anni per identificare pattern statistici affidabili.")
+
+# ---------------------------------------------------------
+# 🤖 ANALISI AUTOMATICA DEI PATTERN COMUNI
+# ---------------------------------------------------------
+st.markdown("""
+### 🤖 Analisi automatica dei pattern turistici
+In questa sezione vengono individuati automaticamente i **pattern ricorrenti di comportamento turistico** dei Paesi, 
+come crescita costante, ciclicità stagionale o calo strutturale.  
+L’analisi considera sempre **solo i mesi realmente presenti** nell’ultimo anno, così da mantenere la comparabilità tra annualità.
+""")
+
+pattern_results = []
+
+for paese, dfp in df_long.groupby("Paese"):
+    # Considera solo i mesi attivi dell'ultimo anno
     dfp = dfp[dfp["Mese"].isin(mesi_attivi_ultimo)]
     if dfp["Anno"].nunique() < 3:
-        continue
+        continue  # servono almeno 3 anni per analisi stabile
 
+    # Calcola la somma per ogni anno
     by_year = dfp.groupby("Anno")["Presenze"].sum().reset_index().sort_values("Anno")
+
+    # Trend lineare
     X = by_year["Anno"].values.reshape(-1, 1)
     y = by_year["Presenze"].values
     model = LinearRegression().fit(X, y)
     slope = model.coef_[0]
+
+    # Calcola varianza intra-annuale (stagionalità media)
     stagionalita = (
         dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").std().mean()
     )
+
+    # Verifica continuità di crescita
     diff = by_year["Presenze"].diff()
     anni_crescita = (diff > 0).sum()
     anni_totali = len(by_year)
     ratio_crescita = anni_crescita / max(anni_totali - 1, 1)
 
+    # Classificazione del pattern
     if slope > 0 and ratio_crescita > 0.7:
         categoria = "📈 Crescita costante"
     elif slope > 0 and ratio_crescita <= 0.7:
@@ -241,8 +334,8 @@ for paese, dfp in df_long.groupby("Paese"):
 
     pattern_results.append({
         "Paese": paese,
-        "Trend medio (mesi attivi)": slope,
-        "Stagionalità media (mesi attivi)": stagionalita,
+        "Trend medio": slope,
+        "Stagionalità media": stagionalita,
         "Anni di crescita": anni_crescita,
         "Anni totali": anni_totali,
         "Continuità crescita": f"{ratio_crescita*100:.1f}%",
@@ -252,13 +345,13 @@ for paese, dfp in df_long.groupby("Paese"):
 df_patterns = pd.DataFrame(pattern_results)
 
 if not df_patterns.empty:
-    st.markdown("#### Classificazione dei pattern turistici (mesi comparabili)")
+    st.markdown("#### Classificazione dei pattern turistici")
     st.dataframe(
         df_patterns
-        .sort_values("Trend medio (mesi attivi)", ascending=False)
+        .sort_values("Trend medio", ascending=False)
         .style.format({
-            "Trend medio (mesi attivi)": "{:,.0f}",
-            "Stagionalità media (mesi attivi)": "{:,.0f}"
+            "Trend medio": "{:,.0f}",
+            "Stagionalità media": "{:,.0f}"
         })
         .applymap(
             lambda v: "color:#2ecc71;" if isinstance(v, str) and "Crescita" in v
@@ -270,10 +363,14 @@ if not df_patterns.empty:
         use_container_width=True,
     )
 
+    # Sintesi mercati promettenti
     promising = df_patterns[df_patterns["Pattern rilevato"].isin(["📈 Crescita costante", "🔁 Ciclico / variabile"])].head(10)
     if not promising.empty:
-        st.markdown("#### 🌍 Mercati potenzialmente promettenti (mesi omogenei)")
-        st.write(f"Analisi basata sui mesi disponibili per l'anno {ultimo_anno} ({mesi_attivi_ultimo[0]}–{mesi_attivi_ultimo[-1]}).")
+        st.markdown("""
+        #### 🌍 Mercati potenzialmente promettenti
+        Questi mercati mostrano **trend positivi e una continuità di crescita** nei mesi omogenei analizzati.  
+        Possono rappresentare **priorità di investimento o promozione turistica** per i prossimi periodi.
+        """)
         st.table(promising[["Paese", "Pattern rilevato", "Continuità crescita"]])
 else:
     st.info("Non ci sono abbastanza dati per identificare pattern significativi.")
