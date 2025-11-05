@@ -382,6 +382,68 @@ if len(anni) >= 2:
         st.dataframe(styled, use_container_width=True)
 
 # ---------------------------------------------------------
+# 🔍 ANALISI PATTERN E POTENZIALE MERCATI
+# ---------------------------------------------------------
+from sklearn.linear_model import LinearRegression
+import numpy as np
+
+st.markdown("### 🔍 Analisi dei pattern e mercati promettenti")
+
+# Usa tutti gli anni presenti
+paesi_analisi = []
+for paese, dfp in df_long.groupby("Paese"):
+    if dfp["Anno"].nunique() >= 3:  # serve almeno 3 anni per regressione
+        trend_data = (
+            dfp.groupby("Anno")["Presenze"].sum().reset_index().sort_values("Anno")
+        )
+        X = trend_data["Anno"].values.reshape(-1, 1)
+        y = trend_data["Presenze"].values
+        model = LinearRegression().fit(X, y)
+        slope = model.coef_[0]  # pendenza = crescita media annuale
+        pct_growth_recent = (
+            (y[-1] - y[-2]) / y[-2] * 100 if len(y) > 1 and y[-2] != 0 else np.nan
+        )
+        paesi_analisi.append(
+            {
+                "Paese": paese,
+                "Trend medio": slope,
+                "Variazione % ultimo anno": pct_growth_recent,
+                "Presenze ultimo anno": y[-1],
+            }
+        )
+
+df_pattern = pd.DataFrame(paesi_analisi)
+
+# Calcolo un indice di potenziale normalizzato
+if not df_pattern.empty:
+    df_pattern["Indice potenziale"] = (
+        (df_pattern["Trend medio"].rank(pct=True) * 0.5)
+        + (df_pattern["Variazione % ultimo anno"].rank(pct=True) * 0.5)
+    ) * 100
+
+    df_pattern = df_pattern.sort_values("Indice potenziale", ascending=False)
+
+    st.markdown(
+        "Ecco i 10 Paesi che mostrano pattern di crescita e potenziale più interessanti:"
+    )
+    st.dataframe(
+        df_pattern.head(10)
+        .style.format(
+            {
+                "Trend medio": "{:,.0f}",
+                "Variazione % ultimo anno": "{:+.2f} %",
+                "Indice potenziale": "{:.1f}",
+            }
+        )
+        .background_gradient(
+            subset=["Indice potenziale"], cmap="Greens"
+        ),
+        use_container_width=True,
+    )
+else:
+    st.info("Non ci sono abbastanza anni per identificare pattern statistici affidabili.")
+
+# ---------------------------------------------------------
 # FOOTER
 # ---------------------------------------------------------
 st.markdown("---")
