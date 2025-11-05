@@ -462,6 +462,89 @@ else:
     st.info("Non ci sono abbastanza anni per identificare pattern statistici affidabili.")
 
 # ---------------------------------------------------------
+# 🤖 ANALISI AUTOMATICA DEI PATTERN COMUNI
+# ---------------------------------------------------------
+st.markdown("### 🤖 Analisi automatica dei pattern turistici")
+
+pattern_results = []
+
+for paese, dfp in df_long.groupby("Paese"):
+    # Considera solo i mesi attivi dell'ultimo anno
+    dfp = dfp[dfp["Mese"].isin(mesi_attivi_ultimo)]
+    if dfp["Anno"].nunique() < 3:
+        continue  # servono almeno 3 anni per analisi stabile
+
+    # Calcola la somma per ogni anno
+    by_year = dfp.groupby("Anno")["Presenze"].sum().reset_index().sort_values("Anno")
+
+    # Trend lineare
+    X = by_year["Anno"].values.reshape(-1, 1)
+    y = by_year["Presenze"].values
+    model = LinearRegression().fit(X, y)
+    slope = model.coef_[0]
+
+    # Calcola varianza intra-annuale (stagionalità media)
+    stagionalita = (
+        dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").std().mean()
+    )
+
+    # Verifica continuità di crescita
+    diff = by_year["Presenze"].diff()
+    anni_crescita = (diff > 0).sum()
+    anni_totali = len(by_year)
+    ratio_crescita = anni_crescita / max(anni_totali - 1, 1)
+
+    # Classificazione del pattern
+    if slope > 0 and ratio_crescita > 0.7:
+        categoria = "📈 Crescita costante"
+    elif slope > 0 and ratio_crescita <= 0.7:
+        categoria = "🔁 Ciclico / variabile"
+    elif slope < 0:
+        categoria = "📉 In calo o stagnante"
+    else:
+        categoria = "🆕 Nuovo mercato"
+
+    pattern_results.append({
+        "Paese": paese,
+        "Trend medio": slope,
+        "Stagionalità media": stagionalita,
+        "Anni di crescita": anni_crescita,
+        "Anni totali": anni_totali,
+        "Continuità crescita": f"{ratio_crescita*100:.1f}%",
+        "Pattern rilevato": categoria
+    })
+
+df_patterns = pd.DataFrame(pattern_results)
+
+if not df_patterns.empty:
+    st.markdown("#### Classificazione dei pattern turistici")
+    st.dataframe(
+        df_patterns
+        .sort_values("Trend medio", ascending=False)
+        .style.format({
+            "Trend medio": "{:,.0f}",
+            "Stagionalità media": "{:,.0f}"
+        })
+        .applymap(
+            lambda v: "color:#2ecc71;" if isinstance(v, str) and "Crescita" in v
+            else ("color:#e67e22;" if isinstance(v, str) and "Ciclico" in v
+            else ("color:#e74c3c;" if isinstance(v, str) and "calo" in v.lower()
+            else ("color:#1abc9c;" if isinstance(v, str) and "Nuovo" in v else ""))),
+            subset=["Pattern rilevato"]
+        ),
+        use_container_width=True,
+    )
+
+    # Sintesi mercati promettenti
+    promising = df_patterns[df_patterns["Pattern rilevato"].isin(["📈 Crescita costante", "🔁 Ciclico / variabile"])].head(10)
+    if not promising.empty:
+        st.markdown("#### 🌍 Mercati potenzialmente promettenti")
+        st.write("Basati su trend positivo e continuità di crescita (mesi omogenei).")
+        st.table(promising[["Paese", "Pattern rilevato", "Continuità crescita"]])
+else:
+    st.info("Non ci sono abbastanza dati per identificare pattern significativi.")
+
+# ---------------------------------------------------------
 # FOOTER
 # ---------------------------------------------------------
 st.markdown("---")
