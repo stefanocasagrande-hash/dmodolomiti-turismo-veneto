@@ -564,7 +564,7 @@ def get_worldbank_data(indicator):
     except Exception:
         return pd.DataFrame()
     df = pd.DataFrame(data)
-    if "country" not in df.columns or "countryiso3code" not in df.columns:
+    if "countryiso3code" not in df.columns:
         return pd.DataFrame()
     df = df[["countryiso3code", "date", "value"]]
     df["date"] = pd.to_numeric(df["date"], errors="coerce")
@@ -575,18 +575,15 @@ def get_worldbank_data(indicator):
 wb_gdp = get_worldbank_data("NY.GDP.PCAP.CD")
 wb_growth = get_worldbank_data("NY.GDP.MKTP.KD.ZG")
 
-# --- STEP 1B: Pulizia e merge robusto ---
+# --- STEP 1B: Merge pulito ---
 if not wb_gdp.empty and not wb_growth.empty:
-    wb_gdp = wb_gdp.rename(columns={"NY.GDP.PCAP.CD": "PIL_pro_capite"})
-    wb_growth = wb_growth.rename(columns={"NY.GDP.MKTP.KD.ZG": "Crescita_PIL"})
-    
     wb_recent = pd.merge(
-        wb_gdp[["countryiso3code", "date", "PIL_pro_capite"]],
-        wb_growth[["countryiso3code", "date", "Crescita_PIL"]],
+        wb_gdp.rename(columns={"NY.GDP.PCAP.CD": "PIL_pro_capite"})[["countryiso3code", "date", "PIL_pro_capite"]],
+        wb_growth.rename(columns={"NY.GDP.MKTP.KD.ZG": "Crescita_PIL"})[["countryiso3code", "date", "Crescita_PIL"]],
         on=["countryiso3code", "date"],
         how="inner"
     )
-    wb_recent = wb_recent[wb_recent["date"].astype(float) >= 2020]
+    wb_recent = wb_recent[wb_recent["date"] >= 2020]
 else:
     wb_recent = pd.DataFrame(columns=["countryiso3code", "date", "PIL_pro_capite", "Crescita_PIL"])
 
@@ -597,26 +594,25 @@ try:
     pytrends.build_payload(kw_list, cat=0, timeframe="today 12-m", geo="", gprop="")
     trends_df = pytrends.interest_by_region(resolution="COUNTRY", inc_low_vol=True, inc_geo_code=True)
     trends_df = trends_df.reset_index().rename(columns={"geoName": "Paese"})
-    trends_df["Interesse_Dolomiti"] = trends_df["Dolomites Italy"]
-    trends_df["Interesse_Veneto"] = trends_df["Veneto Italy"]
+    trends_df["Interesse_Dolomiti"] = trends_df.get("Dolomites Italy", 0)
+    trends_df["Interesse_Veneto"] = trends_df.get("Veneto Italy", 0)
     trends_df = trends_df[["Paese", "Interesse_Dolomiti", "Interesse_Veneto"]]
 except Exception as e:
     st.warning(f"⚠️ Impossibile recuperare Google Trends: {e}")
     trends_df = pd.DataFrame(columns=["Paese", "Interesse_Dolomiti", "Interesse_Veneto"])
 
 # --- STEP 3: Incrocia con i dati di presenze ---
-# Calcola media presenze ultimi 2 anni per ogni Paese
 recent_years = sorted(df_long["Anno"].unique())[-2:]
 df_mean_presenze = (
     df_long[df_long["Anno"].isin(recent_years)]
-    .groupby("Paese", as_index=False)["Presenze"].mean()
+    .groupby("Paese", as_index=False)["Presenze"]
+    .mean()
     .rename(columns={"Presenze": "Media_presenze_recenti"})
 )
 
-# Merge con i dati di tendenza (se presenti)
 df_external = df_mean_presenze.merge(trends_df, on="Paese", how="left")
 
-# Aggiungi media mondiale del PIL e crescita economica come riferimento
+# Media globale come riferimento
 if not wb_recent.empty:
     df_external["PIL_pro_capite"] = wb_recent["PIL_pro_capite"].mean()
     df_external["Crescita_PIL"] = wb_recent["Crescita_PIL"].mean()
@@ -624,10 +620,15 @@ else:
     df_external["PIL_pro_capite"] = np.nan
     df_external["Crescita_PIL"] = np.nan
 
-# --- STEP 4: Calcolo dell’indice composito ---
+# --- STEP 4: Calcolo indice composito ---
 for col in ["Media_presenze_recenti", "Interesse_Dolomiti", "Interesse_Veneto", "PIL_pro_capite", "Crescita_PIL"]:
+    if col not in df_external.columns:
+        df_external[col] = 0
     df_external[col] = pd.to_numeric(df_external[col], errors="coerce")
-    df_external[col] = (df_external[col] - df_external[col].min()) / (df_external[col].max() - df_external[col].min())
+    if df_external[col].max() != df_external[col].min():
+        df_external[col] = (df_external[col] - df_external[col].min()) / (df_external[col].max() - df_external[col].min())
+    else:
+        df_external[col] = 0
 
 df_external["Indice_opportunità"] = (
     df_external["Media_presenze_recenti"] * 0.3 +
@@ -638,23 +639,27 @@ df_external["Indice_opportunità"] = (
 ) * 100
 
 # --- STEP 5: Visualizza classifica ---
-df_rank = (
-    df_external.sort_values("Indice_opportunità", ascending=False)
-    .head(10)
-    .rename(columns={
-        "Indice_opportunità": "🧭 Indice Opportunità (0–100)",
-        "PIL_pro_capite": "PIL pro capite (norm)",
-        "Crescita_PIL": "Crescita economica (norm)"
-    })
-)
+if not df_external.empty:
+    df_rank = (
+        df_external.sort_values("Indice_opportunità", ascending=False)
+        .head(10)
+        .rename(columns={
+            "Indice_opportunità": "🧭 Indice Opportunità (0–100)",
+            "PIL_pro_capite": "PIL pro capite (norm)",
+            "Crescita_PIL": "Crescita economica (norm)"
+        })
+    )
 
-st.markdown("#### 🧭 Top 10 Mercati da Sviluppare (analisi integrata interna + esterna)")
-st.dataframe(
-    df_rank[["Paese", "🧭 Indice Opportunità (0–100)", "Interesse_Dolomiti", "Interesse_Veneto", "PIL pro capite (norm)", "Crescita economica (norm)"]]
-    .style.format("{:.2f}")
-    .background_gradient(subset=["🧭 Indice Opportunità (0–100)"], cmap="Blues"),
-    use_container_width=True,
-)
+    st.markdown("#### 🧭 Top 10 Mercati da Sviluppare (analisi integrata interna + esterna)")
+    st.dataframe(
+        df_rank[["Paese", "🧭 Indice Opportunità (0–100)", "Interesse_Dolomiti", "Interesse_Veneto", "PIL pro capite (norm)", "Crescita economica (norm)"]]
+        .fillna(0)
+        .style.format("{:.2f}")
+        .background_gradient(subset=["🧭 Indice Opportunità (0–100)"], cmap="Blues"),
+        use_container_width=True,
+    )
+else:
+    st.info("⚠️ Nessun dato disponibile per calcolare l'indice di opportunità.")
 
 # ---------------------------------------------------------
 # FOOTER
