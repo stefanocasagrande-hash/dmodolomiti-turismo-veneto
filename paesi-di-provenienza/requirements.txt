@@ -4,3 +4,5 @@ altair
 numpy
 scikit-learn
 matplotlib
+requests
+pytrends
