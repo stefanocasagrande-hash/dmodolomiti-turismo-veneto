@@ -545,6 +545,96 @@ else:
     st.info("Non ci sono abbastanza dati per identificare pattern significativi.")
 
 # ---------------------------------------------------------
+# 🌍 ANALISI DI MERCATO ESTERNA – INDICE DI OPPORTUNITÀ TURISTICA
+# ---------------------------------------------------------
+import requests
+from pytrends.request import TrendReq
+
+st.markdown("### 🌍 Analisi di mercato esterna e indice di opportunità")
+
+# --- STEP 1: Raccolta indicatori economici (World Bank) ---
+@st.cache_data
+def get_worldbank_data(indicator):
+    url = f"https://api.worldbank.org/v2/country/all/indicator/{indicator}?format=json&per_page=20000"
+    resp = requests.get(url)
+    if resp.status_code != 200:
+        return pd.DataFrame()
+    data = resp.json()[1]
+    df = pd.DataFrame(data)
+    df = df[["country", "countryiso3code", "date", "value"]]
+    df = df.rename(columns={"country": "Paese", "value": indicator})
+    df["date"] = pd.to_numeric(df["date"], errors="coerce")
+    return df
+
+# PIL pro capite (USD) + crescita annua %
+wb_gdp = get_worldbank_data("NY.GDP.PCAP.CD")
+wb_growth = get_worldbank_data("NY.GDP.MKTP.KD.ZG")
+
+# Filtra solo anni recenti
+wb_recent = (
+    wb_gdp.merge(wb_growth, on=["countryiso3code", "Paese", "date"], how="inner")
+    .query("date >= 2020")
+)
+
+# --- STEP 2: Interesse online (Google Trends) ---
+pytrends = TrendReq(hl="en-US", tz=360)
+kw_list = ["Dolomites Italy", "Veneto Italy"]
+pytrends.build_payload(kw_list, cat=0, timeframe="today 12-m", geo="", gprop="")
+trends_df = pytrends.interest_by_region(resolution="COUNTRY", inc_low_vol=True, inc_geo_code=True)
+trends_df = trends_df.reset_index().rename(columns={"geoName": "Paese"})
+trends_df["Interesse_Dolomiti"] = trends_df["Dolomites Italy"]
+trends_df["Interesse_Veneto"] = trends_df["Veneto Italy"]
+trends_df = trends_df[["Paese", "Interesse_Dolomiti", "Interesse_Veneto"]]
+
+# --- STEP 3: Incrocia con i dati di presenze ---
+# Calcola media presenze ultimi 2 anni per ogni Paese
+recent_years = sorted(df_long["Anno"].unique())[-2:]
+df_mean_presenze = (
+    df_long[df_long["Anno"].isin(recent_years)]
+    .groupby("Paese", as_index=False)["Presenze"].mean()
+    .rename(columns={"Presenze": "Media_presenze_recenti"})
+)
+
+# Merge completo
+df_external = (
+    df_mean_presenze.merge(trends_df, on="Paese", how="left")
+    .merge(wb_recent.groupby("Paese", as_index=False)[["NY.GDP.PCAP.CD", "NY.GDP.MKTP.KD.ZG"]].mean(),
+           on="Paese", how="left")
+)
+
+# --- STEP 4: Calcolo dell’indice composito ---
+for col in ["Media_presenze_recenti", "Interesse_Dolomiti", "Interesse_Veneto", "NY.GDP.PCAP.CD", "NY.GDP.MKTP.KD.ZG"]:
+    df_external[col] = pd.to_numeric(df_external[col], errors="coerce")
+    df_external[col] = (df_external[col] - df_external[col].min()) / (df_external[col].max() - df_external[col].min())
+
+df_external["Indice_opportunità"] = (
+    df_external["Media_presenze_recenti"] * 0.3 +
+    df_external["Interesse_Dolomiti"] * 0.25 +
+    df_external["Interesse_Veneto"] * 0.15 +
+    df_external["NY.GDP.PCAP.CD"] * 0.15 +
+    df_external["NY.GDP.MKTP.KD.ZG"] * 0.15
+) * 100
+
+# --- STEP 5: Visualizza classifica ---
+df_rank = (
+    df_external.sort_values("Indice_opportunità", ascending=False)
+    .head(10)
+    .rename(columns={
+        "NY.GDP.PCAP.CD": "PIL pro capite (norm)",
+        "NY.GDP.MKTP.KD.ZG": "Crescita economica (norm)",
+        "Indice_opportunità": "🧭 Indice Opportunità (0–100)"
+    })
+)
+
+st.markdown("#### 🧭 Top 10 Mercati da Sviluppare (analisi integrata interna + esterna)")
+st.dataframe(
+    df_rank[["Paese", "🧭 Indice Opportunità (0–100)", "Interesse_Dolomiti", "Interesse_Veneto", "PIL pro capite (norm)", "Crescita economica (norm)"]]
+    .style.format("{:.2f}")
+    .background_gradient(subset=["🧭 Indice Opportunità (0–100)"], cmap="Blues"),
+    use_container_width=True,
+)
+
+# ---------------------------------------------------------
 # FOOTER
 # ---------------------------------------------------------
 st.markdown("---")
