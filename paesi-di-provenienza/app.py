@@ -288,47 +288,73 @@ L’indice di potenziale combina **trend di crescita** e **variazione percentual
 else:
     st.info("Non ci sono abbastanza anni per identificare pattern statistici affidabili.")
 
+# ---------------------------------------------------------
+# 🤖 ANALISI AUTOMATICA DEI PATTERN TURISTICI (con indicatori evoluti)
+# ---------------------------------------------------------
+st.markdown("### 🤖 Analisi automatica dei pattern turistici")
 
-# ---------------------------------------------------------
-# 🤖 ANALISI AUTOMATICA DEI PATTERN COMUNI
-# ---------------------------------------------------------
 st.markdown("""
-### 🤖 Analisi automatica dei pattern turistici
-Questa analisi individua automaticamente i **pattern di comportamento turistico** dei Paesi — come crescita costante, ciclicità stagionale o calo strutturale.  
-Sono considerati solo i mesi realmente presenti nell’ultimo anno, garantendo confronti coerenti nel tempo.
+Questa analisi identifica i **pattern di crescita e stagionalità** dei principali mercati turistici, 
+basandosi sui mesi effettivamente alimentati dell'ultimo anno.  
+Le colonne della tabella mostrano:
+
+- **Trend medio:** crescita o calo medio annuo (in numero di presenze, mesi comparabili).  
+- **Crescita % media annua (CAGR):** variazione percentuale media annua.  
+- **Stagionalità media:** deviazione media mensile (in presenze) rispetto alla media annuale.  
+- **Indice di stagionalità (%):** misura quanto il mercato è stagionale (0% = stabile tutto l’anno, >50% = fortemente stagionale).  
+- **Continuità crescita:** quota di anni in cui le presenze sono cresciute rispetto all’anno precedente.  
+- **Pattern rilevato:** classificazione automatica (Crescita costante, Ciclico, Calo, Nuovo mercato).
 """)
 
-# 📘 Legenda indicatori pattern
-with st.expander("📘 Legenda degli indicatori di questa sezione"):
-    st.markdown("""
-    - **Trend medio** → crescita media annua stimata.  
-    - **Stagionalità media** → variazione media intra-annuale (più alta = stagionalità più marcata).  
-    - **Anni di crescita** → numero di anni consecutivi con aumento rispetto all’anno precedente.  
-    - **Continuità crescita** → percentuale di anni positivi sul totale.  
-    - **Pattern rilevato** → classificazione automatica del comportamento del mercato:
-        - 📈 Crescita costante → crescita regolare e sostenuta.
-        - 🔁 Ciclico / variabile → andamento altalenante o stagionale.
-        - 📉 In calo o stagnante → trend negativo o stabile.
-        - 🆕 Nuovo mercato → comparsa recente senza storico consolidato.
-    """)
+from sklearn.linear_model import LinearRegression
 
 pattern_results = []
+
+# Mesi alimentati effettivi
+ultimo_anno = int(df_long["Anno"].max())
+mesi_attivi_ultimo = (
+    df_long[df_long["Anno"] == ultimo_anno]
+    .groupby("Mese", as_index=False)["Presenze"]
+    .sum()
+)
+mesi_attivi_ultimo = mesi_attivi_ultimo[mesi_attivi_ultimo["Presenze"] > 0]["Mese"].tolist()
+
 for paese, dfp in df_long.groupby("Paese"):
     dfp = dfp[dfp["Mese"].isin(mesi_attivi_ultimo)]
     if dfp["Anno"].nunique() < 3:
         continue
 
     by_year = dfp.groupby("Anno")["Presenze"].sum().reset_index().sort_values("Anno")
+
+    # Trend lineare (variazione media annua)
     X = by_year["Anno"].values.reshape(-1, 1)
     y = by_year["Presenze"].values
     model = LinearRegression().fit(X, y)
     slope = model.coef_[0]
-    stagionalita = dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").std().mean()
+
+    # CAGR (%)
+    if len(by_year) > 1 and by_year["Presenze"].iloc[0] > 0:
+        cagr = ((by_year["Presenze"].iloc[-1] / by_year["Presenze"].iloc[0]) ** (1 / (len(by_year) - 1)) - 1) * 100
+    else:
+        cagr = np.nan
+
+    # Stagionalità media (deviazione standard media annuale)
+    stagionalita_abs = (
+        dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").std().mean()
+    )
+
+    # Indice di stagionalità (%) = coefficiente di variazione medio
+    stagionalita_rel = (
+        dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").apply(lambda x: (x.std() / x.mean()) * 100).mean()
+    )
+
+    # Continuità di crescita
     diff = by_year["Presenze"].diff()
     anni_crescita = (diff > 0).sum()
     anni_totali = len(by_year)
     ratio_crescita = anni_crescita / max(anni_totali - 1, 1)
 
+    # Classificazione pattern
     if slope > 0 and ratio_crescita > 0.7:
         categoria = "📈 Crescita costante"
     elif slope > 0 and ratio_crescita <= 0.7:
@@ -341,7 +367,9 @@ for paese, dfp in df_long.groupby("Paese"):
     pattern_results.append({
         "Paese": paese,
         "Trend medio": slope,
-        "Stagionalità media": stagionalita,
+        "Crescita % media annua (CAGR)": cagr,
+        "Stagionalità media": stagionalita_abs,
+        "Indice di stagionalità (%)": stagionalita_rel,
         "Anni di crescita": anni_crescita,
         "Anni totali": anni_totali,
         "Continuità crescita": f"{ratio_crescita*100:.1f}%",
@@ -351,13 +379,16 @@ for paese, dfp in df_long.groupby("Paese"):
 df_patterns = pd.DataFrame(pattern_results)
 
 if not df_patterns.empty:
-    st.markdown("#### Classificazione dei pattern turistici")
+    st.markdown("#### Classificazione dei pattern turistici (mesi comparabili)")
+
     st.dataframe(
         df_patterns
         .sort_values("Trend medio", ascending=False)
         .style.format({
             "Trend medio": "{:,.0f}",
-            "Stagionalità media": "{:,.0f}"
+            "Crescita % media annua (CAGR)": "{:+.2f} %",
+            "Stagionalità media": "{:,.0f}",
+            "Indice di stagionalità (%)": "{:.1f} %",
         })
         .applymap(
             lambda v: "color:#2ecc71;" if isinstance(v, str) and "Crescita" in v
@@ -369,26 +400,15 @@ if not df_patterns.empty:
         use_container_width=True,
     )
 
-    # ---------------------------------------------------------
-    # 🌍 MERCATI POTENZIALMENTE PROMETTENTI
-    # ---------------------------------------------------------
-    st.markdown("""
-    #### 🌍 Mercati potenzialmente promettenti
-    In base all’analisi precedente, vengono qui elencati i Paesi che mostrano un **trend positivo e una crescita regolare o ciclica**.  
-    Questi mercati possono essere **prioritari per attività di promozione o investimenti turistici mirati**.
-    """)
-
-    # 📘 Legenda indicatori mercati promettenti
-    with st.expander("📘 Legenda indicatori di questa sezione"):
-        st.markdown("""
-        - **Pattern rilevato** → classificazione del comportamento turistico (vedi legenda precedente).  
-        - **Continuità crescita** → quota percentuale di anni con aumento delle presenze.  
-        Un valore superiore al **70%** indica un mercato solido e con domanda costante.
-        """)
-
+    # Sintesi mercati promettenti
     promising = df_patterns[df_patterns["Pattern rilevato"].isin(["📈 Crescita costante", "🔁 Ciclico / variabile"])].head(10)
     if not promising.empty:
-        st.table(promising[["Paese", "Pattern rilevato", "Continuità crescita"]])
+        st.markdown("#### 🌍 Mercati potenzialmente promettenti")
+        st.write("Mercati con trend positivo e buona continuità di crescita (mesi omogenei).")
+        st.table(
+            promising[["Paese", "Pattern rilevato", "Crescita % media annua (CAGR)", "Indice di stagionalità (%)", "Continuità crescita"]]
+            .sort_values("Crescita % media annua (CAGR)", ascending=False)
+        )
 else:
     st.info("Non ci sono abbastanza dati per identificare pattern significativi.")
 
