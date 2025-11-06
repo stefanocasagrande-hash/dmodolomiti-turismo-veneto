@@ -412,6 +412,30 @@ if not df_patterns.empty:
 else:
     st.info("Non ci sono abbastanza dati per identificare pattern significativi.")
 
+# 📊 Grafico scatter: Crescita vs Stagionalità dei Paesi
+st.markdown("#### 📌 Crescita % annua vs Stagionalità dei mercati")
+
+df_scatter = df_patterns.copy()
+# Assicurati che abbia le colonne necessarie
+df_scatter = df_scatter.dropna(subset=["Crescita % media annua (CAGR)", "Indice di stagionalità (%)"])
+
+import altair as alt
+
+chart_scatter = (
+    alt.Chart(df_scatter)
+    .mark_circle(size=60, opacity=0.7)
+    .encode(
+        x=alt.X("Crescita % media annua (CAGR):Q", title="Crescita % media annua (CAGR)"),
+        y=alt.Y("Indice di stagionalità (%):Q", title="Indice di stagionalità (%)"),
+        color=alt.Color("Pattern rilevato:N", title="Pattern"),
+        tooltip=["Paese", "Crescita % media annua (CAGR)", "Indice di stagionalità (%)", "Pattern rilevato"]
+    )
+    .properties(width=700, height=450)
+    .interactive()
+)
+
+st.altair_chart(chart_scatter, use_container_width=True)
+
 # ---------------------------------------------------------
 # FOOTER
 # ---------------------------------------------------------
