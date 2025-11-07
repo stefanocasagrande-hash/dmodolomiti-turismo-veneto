@@ -346,6 +346,20 @@ if not df_patterns.empty:
     # Escludiamo i totali
     df_patterns = df_patterns[~df_patterns["Paese"].str.contains("Totale stranieri", case=False, na=False)]
 
+    # 📘 Legenda - Classificazione dei pattern (da inserire prima della tabella)
+with st.expander("📘 Legenda - Classificazione dei pattern turistici"):
+    st.markdown("""
+    - **Trend medio** → pendenza della regressione lineare sulle presenze (unità: presenze/anno). Indica la crescita o il calo medio annuo.
+    - **Crescita % media annua (CAGR)** → crescita percentuale media annua tra il primo e l'ultimo anno (utile per confronti relativi).
+    - **Stagionalità media / Indice di stagionalità (%)** → misura l'oscillazione mensile media; l'indice (%) è il coefficiente di variazione medio (std/mean * 100).
+    - **Continuità crescita** → percentuale di anni in cui le presenze sono aumentate rispetto all'anno precedente.
+    - **Pattern rilevato** → classificazione automatica:
+        - 📈 *Crescita costante* → trend positivo e continuità > 70%;
+        - 🔁 *Ciclico / variabile* → trend positivo ma continuità ≤ 70% (forte stagionalità o oscillazioni);
+        - 📉 *In calo o stagnante* → trend negativo o stabile;
+        - 🆕 *Nuovo mercato* → presenza recente o dati insufficienti per trend consolidato.
+    """)
+
     st.markdown("#### Classificazione dei pattern turistici (mesi comparabili)")
     st.dataframe(
         df_patterns.sort_values("Trend medio", ascending=False)
