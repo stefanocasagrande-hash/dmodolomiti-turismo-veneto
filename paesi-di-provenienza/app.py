@@ -204,6 +204,7 @@ for anno in sorted(df_top["Anno"].unique()):
 # ---------------------------------------------------------
 from sklearn.linear_model import LinearRegression
 import numpy as np
+import altair as alt
 
 # 🧭 Introduzione esplicativa generale
 st.markdown("""
@@ -215,10 +216,10 @@ In questo modo il confronto tra anni rimane **omogeneo e realistico**, evitando 
 # 🧾 Legenda degli indicatori
 with st.expander("📘 Legenda degli indicatori di questa sezione"):
     st.markdown("""
-    - **Trend medio (mesi attivi)** → indica la crescita media annua delle presenze nei mesi comparabili.  
+    - **Trend medio (mesi attivi)** → crescita media annua delle presenze (in numero di presenze) nei mesi comparabili.  
     - **Variazione % ultimo anno** → variazione percentuale tra l’ultimo anno e quello precedente (solo mesi disponibili).  
-    - **Presenze ultimo anno (mesi attivi)** → numero totale di presenze registrate nei mesi effettivamente alimentati dell’ultimo anno.  
-    - **Indice potenziale** → valore composito (0–100) che combina trend e variazione percentuale per identificare i mercati più promettenti.
+    - **Presenze ultimo anno (mesi attivi)** → totale presenze registrate nei mesi effettivamente alimentati dell’ultimo anno.  
+    - **Indice potenziale (0–100)** → valore composito che combina trend e variazione percentuale per identificare i mercati più promettenti.
     """)
 
 # Individua l'anno più recente e i mesi alimentati
@@ -285,6 +286,22 @@ L’indice di potenziale combina **trend di crescita** e **variazione percentual
         .background_gradient(subset=["Indice potenziale"], cmap="Greens"),
         use_container_width=True,
     )
+
+    # 🔹 Grafico barre Top 10 Indice potenziale
+    st.markdown("#### 📈 Top 10 Paesi per Indice Potenziale")
+    top10_chart = (
+        alt.Chart(df_pattern.head(10))
+        .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+        .encode(
+            x=alt.X("Indice potenziale:Q", title="Indice potenziale (0–100)"),
+            y=alt.Y("Paese:N", sort="-x", title="Paese"),
+            color=alt.Color("Indice potenziale:Q", scale=alt.Scale(scheme="greens")),
+            tooltip=["Paese", "Trend medio (mesi attivi)", "Variazione % ultimo anno", "Indice potenziale"]
+        )
+        .properties(height=400)
+    )
+    st.altair_chart(top10_chart, use_container_width=True)
+
 else:
     st.info("Non ci sono abbastanza anni per identificare pattern statistici affidabili.")
 
@@ -296,28 +313,15 @@ st.markdown("### 🤖 Analisi automatica dei pattern turistici")
 st.markdown("""
 Questa analisi identifica i **pattern di crescita e stagionalità** dei principali mercati turistici, 
 basandosi sui mesi effettivamente alimentati dell'ultimo anno.  
-Le colonne della tabella mostrano:
-
-- **Trend medio:** crescita o calo medio annuo (in numero di presenze, mesi comparabili).  
+Gli indicatori mostrano:
+- **Trend medio:** crescita o calo medio annuo (in numero di presenze).  
 - **Crescita % media annua (CAGR):** variazione percentuale media annua.  
-- **Stagionalità media:** deviazione media mensile (in presenze) rispetto alla media annuale.  
-- **Indice di stagionalità (%):** misura quanto il mercato è stagionale (0% = stabile tutto l’anno, >50% = fortemente stagionale).  
-- **Continuità crescita:** quota di anni in cui le presenze sono cresciute rispetto all’anno precedente.  
-- **Pattern rilevato:** classificazione automatica (Crescita costante, Ciclico, Calo, Nuovo mercato).
+- **Indice di stagionalità (%):** misura quanto il mercato è stagionale (0% = stabile tutto l’anno).  
+- **Continuità crescita:** percentuale di anni in cui si è registrata una crescita rispetto all’anno precedente.  
+- **Pattern rilevato:** classificazione automatica (📈 Crescita costante, 🔁 Ciclico, 📉 Calo, 🆕 Nuovo mercato).
 """)
 
-from sklearn.linear_model import LinearRegression
-
 pattern_results = []
-
-# Mesi alimentati effettivi
-ultimo_anno = int(df_long["Anno"].max())
-mesi_attivi_ultimo = (
-    df_long[df_long["Anno"] == ultimo_anno]
-    .groupby("Mese", as_index=False)["Presenze"]
-    .sum()
-)
-mesi_attivi_ultimo = mesi_attivi_ultimo[mesi_attivi_ultimo["Presenze"] > 0]["Mese"].tolist()
 
 for paese, dfp in df_long.groupby("Paese"):
     dfp = dfp[dfp["Mese"].isin(mesi_attivi_ultimo)]
@@ -326,35 +330,28 @@ for paese, dfp in df_long.groupby("Paese"):
 
     by_year = dfp.groupby("Anno")["Presenze"].sum().reset_index().sort_values("Anno")
 
-    # Trend lineare (variazione media annua)
     X = by_year["Anno"].values.reshape(-1, 1)
     y = by_year["Presenze"].values
     model = LinearRegression().fit(X, y)
     slope = model.coef_[0]
 
-    # CAGR (%)
     if len(by_year) > 1 and by_year["Presenze"].iloc[0] > 0:
         cagr = ((by_year["Presenze"].iloc[-1] / by_year["Presenze"].iloc[0]) ** (1 / (len(by_year) - 1)) - 1) * 100
     else:
         cagr = np.nan
 
-    # Stagionalità media (deviazione standard media annuale)
     stagionalita_abs = (
         dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").std().mean()
     )
-
-    # Indice di stagionalità (%) = coefficiente di variazione medio
     stagionalita_rel = (
         dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").apply(lambda x: (x.std() / x.mean()) * 100).mean()
     )
 
-    # Continuità di crescita
     diff = by_year["Presenze"].diff()
     anni_crescita = (diff > 0).sum()
     anni_totali = len(by_year)
     ratio_crescita = anni_crescita / max(anni_totali - 1, 1)
 
-    # Classificazione pattern
     if slope > 0 and ratio_crescita > 0.7:
         categoria = "📈 Crescita costante"
     elif slope > 0 and ratio_crescita <= 0.7:
@@ -380,7 +377,6 @@ df_patterns = pd.DataFrame(pattern_results)
 
 if not df_patterns.empty:
     st.markdown("#### Classificazione dei pattern turistici (mesi comparabili)")
-
     st.dataframe(
         df_patterns
         .sort_values("Trend medio", ascending=False)
@@ -399,16 +395,51 @@ if not df_patterns.empty:
         ),
         use_container_width=True,
     )
-    
-    # Sintesi mercati promettenti
+
+    # 🔹 Grafico scatter Crescita vs Stagionalità
+    st.markdown("#### 📌 Relazione tra crescita e stagionalità dei mercati")
+    df_scatter = df_patterns.dropna(subset=["Crescita % media annua (CAGR)", "Indice di stagionalità (%)"]).copy()
+    chart_scatter = (
+        alt.Chart(df_scatter)
+        .mark_circle(size=70, opacity=0.8)
+        .encode(
+            x=alt.X("Crescita % media annua (CAGR):Q", title="Crescita % media annua (CAGR)"),
+            y=alt.Y("Indice di stagionalità (%):Q", title="Indice di stagionalità (%)"),
+            color=alt.Color("Pattern rilevato:N", title="Pattern"),
+            tooltip=["Paese", "Crescita % media annua (CAGR)", "Indice di stagionalità (%)", "Pattern rilevato"]
+        )
+        .properties(height=450)
+        .interactive()
+    )
+    st.altair_chart(chart_scatter, use_container_width=True)
+
+    # 🔹 Mercati potenzialmente promettenti
     promising = df_patterns[df_patterns["Pattern rilevato"].isin(["📈 Crescita costante", "🔁 Ciclico / variabile"])].head(10)
     if not promising.empty:
         st.markdown("#### 🌍 Mercati potenzialmente promettenti")
-        st.write("Mercati con trend positivo e buona continuità di crescita (mesi omogenei).")
+        st.write("Mercati con **trend positivo**, **stagionalità moderata** e **continuità di crescita elevata** (mesi comparabili).")
         st.table(
             promising[["Paese", "Pattern rilevato", "Crescita % media annua (CAGR)", "Indice di stagionalità (%)", "Continuità crescita"]]
             .sort_values("Crescita % media annua (CAGR)", ascending=False)
         )
+
+        # 🔹 Grafico barre mercati promettenti
+        st.markdown("#### 📊 Top 10 mercati promettenti (grafico)")
+        top10_promising = promising.copy()
+        top10_promising["Continuità crescita (%)"] = top10_promising["Continuità crescita"].str.replace("%", "").astype(float)
+        bar_chart = (
+            alt.Chart(top10_promising)
+            .mark_bar(cornerRadiusTopLeft=4, cornerRadiusTopRight=4)
+            .encode(
+                x=alt.X("Continuità crescita (%):Q", title="Continuità di crescita (%)"),
+                y=alt.Y("Paese:N", sort="-x", title="Paese"),
+                color=alt.Color("Pattern rilevato:N", title="Pattern"),
+                tooltip=["Paese", "Pattern rilevato", "Continuità crescita (%)"]
+            )
+            .properties(height=400)
+        )
+        st.altair_chart(bar_chart, use_container_width=True)
+
 else:
     st.info("Non ci sono abbastanza dati per identificare pattern significativi.")
 
