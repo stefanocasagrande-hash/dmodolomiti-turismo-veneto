@@ -400,7 +400,7 @@ if not df_patterns.empty:
         use_container_width=True,
     )
 
-# ---------------------------------------------------------
+    # ---------------------------------------------------------
 # 📊 GRAFICO - Crescita vs Stagionalità
 # ---------------------------------------------------------
 st.markdown("#### 📈 Relazione tra crescita e stagionalità dei mercati")
