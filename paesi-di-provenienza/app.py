@@ -224,6 +224,7 @@ with st.expander("📘 Legenda indicatori di questa sezione"):
 # Filtriamo fuori i totali
 df_filtrato = df_long[~df_long["Paese"].str.contains("Totale stranieri", case=False, na=False)]
 
+# Individua l'anno e mesi effettivamente alimentati
 ultimo_anno = int(df_filtrato["Anno"].max())
 mesi_attivi_ultimo = (
     df_filtrato[df_filtrato["Anno"] == ultimo_anno]
@@ -297,6 +298,20 @@ else:
 # ---------------------------------------------------------
 st.markdown("### 🤖 Analisi automatica dei pattern turistici")
 
+# 📘 Legenda - Classificazione dei pattern (nuova)
+with st.expander("📘 Legenda - Classificazione dei pattern turistici"):
+    st.markdown("""
+    - **Trend medio** → pendenza della crescita media delle presenze (unità: presenze/anno).  
+    - **Crescita % media annua (CAGR)** → crescita percentuale media annua.  
+    - **Indice di stagionalità (%)** → misura la variabilità mensile: valori alti indicano stagionalità marcata.  
+    - **Continuità crescita** → quota di anni in cui le presenze sono aumentate rispetto all’anno precedente.  
+    - **Pattern rilevato**:
+        - 📈 *Crescita costante*: trend positivo e continuità > 70%;  
+        - 🔁 *Ciclico / variabile*: trend positivo ma continuità ≤ 70%;  
+        - 📉 *In calo o stagnante*: trend negativo o stabile;  
+        - 🆕 *Nuovo mercato*: presenza recente o non ancora consolidata.
+    """)
+
 df_filtrato = df_filtrato.copy()
 pattern_results = []
 
@@ -311,10 +326,8 @@ for paese, dfp in df_filtrato.groupby("Paese"):
     y = by_year["Presenze"].values
     model = LinearRegression().fit(X, y)
     slope = model.coef_[0]
-
     cagr = ((by_year["Presenze"].iloc[-1] / by_year["Presenze"].iloc[0]) ** (1 / (len(by_year) - 1)) - 1) * 100 if len(by_year) > 1 else np.nan
 
-    stagionalita_abs = dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").std().mean()
     stagionalita_rel = dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").apply(lambda x: (x.std() / x.mean()) * 100).mean()
 
     diff = by_year["Presenze"].diff()
@@ -343,7 +356,6 @@ for paese, dfp in df_filtrato.groupby("Paese"):
 df_patterns = pd.DataFrame(pattern_results)
 
 if not df_patterns.empty:
-    # Escludiamo i totali
     df_patterns = df_patterns[~df_patterns["Paese"].str.contains("Totale stranieri", case=False, na=False)]
 
     st.markdown("#### Classificazione dei pattern turistici (mesi comparabili)")
@@ -371,6 +383,16 @@ if not df_patterns.empty:
     ].head(10)
 
     if not promising.empty:
+        # 📘 Legenda per mercati promettenti (nuova)
+        with st.expander("📘 Legenda - Mercati potenzialmente promettenti"):
+            st.markdown("""
+            - **Criterio di selezione:** Paesi con *Pattern = Crescita costante* o *Ciclico/variabile* (senza aggregazioni “Altri ...”).  
+            - **Crescita % media annua (CAGR):** priorità ai mercati in crescita in termini percentuali.  
+            - **Indice di stagionalità (%):** più basso = mercato stabile e distribuito durante l’anno.  
+            - **Continuità crescita:** percentuale di anni con andamento positivo (>70% = solido).  
+            - **Nota:** le voci “Altri paesi ...” sono aggregazioni e **non** rappresentano singoli mercati analizzabili.
+            """)
+
         st.markdown("#### 🌍 Mercati potenzialmente promettenti")
         st.write("Mercati con **trend positivo**, **stagionalità moderata** e **continuità di crescita elevata**.")
         st.table(
