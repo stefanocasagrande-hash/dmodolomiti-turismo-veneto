@@ -346,7 +346,7 @@ if not df_patterns.empty:
     # Escludiamo i totali
     df_patterns = df_patterns[~df_patterns["Paese"].str.contains("Totale stranieri", case=False, na=False)]
 
-    # 📘 Legenda - Classificazione dei pattern (da inserire prima della tabella)
+# 📘 Legenda - Classificazione dei pattern (da inserire prima della tabella)
 with st.expander("📘 Legenda - Classificazione dei pattern turistici"):
     st.markdown("""
     - **Trend medio** → pendenza della regressione lineare sulle presenze (unità: presenze/anno). Indica la crescita o il calo medio annuo.
