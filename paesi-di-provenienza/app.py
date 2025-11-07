@@ -400,6 +400,31 @@ if not df_patterns.empty:
         use_container_width=True,
     )
 
+# ---------------------------------------------------------
+# 📊 GRAFICO - Crescita vs Stagionalità
+# ---------------------------------------------------------
+st.markdown("#### 📈 Relazione tra crescita e stagionalità dei mercati")
+
+df_scatter = df_patterns.dropna(subset=["Trend medio", "Stagionalità media"]).copy()
+df_scatter["Trend medio (k)"] = df_scatter["Trend medio"] / 1000  # scala più leggibile
+
+import altair as alt
+
+scatter_chart = (
+    alt.Chart(df_scatter)
+    .mark_circle(size=70, opacity=0.7)
+    .encode(
+        x=alt.X("Trend medio (k):Q", title="Crescita media annua (migliaia di presenze)"),
+        y=alt.Y("Stagionalità media:Q", title="Variabilità stagionale (dev. standard)"),
+        color=alt.Color("Pattern rilevato:N", title="Pattern rilevato"),
+        tooltip=["Paese", "Trend medio", "Stagionalità media", "Pattern rilevato"]
+    )
+    .properties(height=450)
+    .interactive()
+)
+st.altair_chart(scatter_chart, use_container_width=True)
+
+    
     # Sintesi mercati promettenti
     promising = df_patterns[df_patterns["Pattern rilevato"].isin(["📈 Crescita costante", "🔁 Ciclico / variabile"])].head(10)
     if not promising.empty:
@@ -411,30 +436,6 @@ if not df_patterns.empty:
         )
 else:
     st.info("Non ci sono abbastanza dati per identificare pattern significativi.")
-
-# 📊 Grafico scatter: Crescita vs Stagionalità dei Paesi
-st.markdown("#### 📌 Crescita % annua vs Stagionalità dei mercati")
-
-df_scatter = df_patterns.copy()
-# Assicurati che abbia le colonne necessarie
-df_scatter = df_scatter.dropna(subset=["Crescita % media annua (CAGR)", "Indice di stagionalità (%)"])
-
-import altair as alt
-
-chart_scatter = (
-    alt.Chart(df_scatter)
-    .mark_circle(size=60, opacity=0.7)
-    .encode(
-        x=alt.X("Crescita % media annua (CAGR):Q", title="Crescita % media annua (CAGR)"),
-        y=alt.Y("Indice di stagionalità (%):Q", title="Indice di stagionalità (%)"),
-        color=alt.Color("Pattern rilevato:N", title="Pattern"),
-        tooltip=["Paese", "Crescita % media annua (CAGR)", "Indice di stagionalità (%)", "Pattern rilevato"]
-    )
-    .properties(width=700, height=450)
-    .interactive()
-)
-
-st.altair_chart(chart_scatter, use_container_width=True)
 
 # ---------------------------------------------------------
 # FOOTER
