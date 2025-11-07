@@ -138,35 +138,65 @@ chart = (
 )
 st.altair_chart(chart, use_container_width=True)
 
-# ---------------------------------------------------------
-# TABELLA COMPARATIVA
-# ---------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 📊 DIFFERENZE TRA ANNI SELEZIONATI (robusta multi-anno) TABELLA COMPARATIVA
+# ---------------------------------------------------------------------------
 if len(anni) >= 2:
     st.subheader("📊 Differenze tra anni selezionati")
-    pivot = df_filtered.pivot_table(
-        index=["Mese", "Paese"], columns="Anno", values="Presenze", aggfunc="sum"
-    ).reset_index()
 
-    try:
-        anni_sorted = sorted(anni)
-        if len(anni_sorted) == 2:
-            a1, a2 = anni_sorted
-            pivot["Differenza assoluta"] = pivot[a2] - pivot[a1]
-            pivot["Differenza %"] = ((pivot[a2] - pivot[a1]) / pivot[a1].replace(0, pd.NA) * 100).round(2)
-    except Exception as e:
-        st.error(f"Errore nel calcolo delle differenze: {e}")
+    # Pivot per Mese e Paese (come in precedenza)
+    pivot = (
+        df_filtered.pivot_table(
+            index=["Mese", "Paese"], columns="Anno", values="Presenze", aggfunc="sum"
+        )
+        .fillna(0)
+        .reset_index()
+    )
 
-    for col in pivot.select_dtypes(include="number").columns:
-        pivot[col] = pivot[col].fillna(0)
+    # Ordina gli anni e scegli gli ultimi due per il confronto
+    anni_sorted = sorted(anni)
+    anno_prec = anni_sorted[-2]
+    anno_corr = anni_sorted[-1]
 
+    # Calcolo delle differenze solo tra gli ultimi due anni selezionati
+    pivot["Differenza assoluta"] = pivot[anno_corr] - pivot[anno_prec]
+    pivot["Differenza %"] = np.where(
+        pivot[anno_prec] != 0,
+        (pivot["Differenza assoluta"] / pivot[anno_prec]) * 100,
+        np.nan
+    ).round(2)
+
+    # Funzione di colorazione
     def color_diff(val):
-        if val > 0: return "color:green;font-weight:bold;"
-        elif val < 0: return "color:red;font-weight:bold;"
-        else: return "color:gray;"
+        if pd.isna(val):
+            return "color:gray;"
+        elif val > 0:
+            return "color:green; font-weight:bold;"
+        elif val < 0:
+            return "color:red; font-weight:bold;"
+        else:
+            return "color:gray;"
+
+    # Messaggio descrittivo
+    st.markdown(
+        f"Confronto tra **{anno_corr}** e **{anno_prec}** (solo mesi comuni e Paesi filtrati)."
+    )
+
+    # Visualizzazione
     st.dataframe(
-        pivot.style.applymap(color_diff, subset=["Differenza assoluta", "Differenza %"]),
+        pivot.style
+        .format({
+            anno_prec: "{:,.0f}",
+            anno_corr: "{:,.0f}",
+            "Differenza assoluta": "{:+,.0f}",
+            "Differenza %": "{:+.2f} %",
+        })
+        .applymap(color_diff, subset=["Differenza assoluta", "Differenza %"]),
         use_container_width=True,
     )
+
+else:
+    st.info("Seleziona almeno due anni per visualizzare il confronto delle differenze.")
 
 # ---------------------------------------------------------
 # 🏆 CLASSIFICA DEI 10 PAESI CON PIÙ PRESENZE
