@@ -399,31 +399,6 @@ if not df_patterns.empty:
         ),
         use_container_width=True,
     )
-
-    # ---------------------------------------------------------
-# 📊 GRAFICO - Crescita vs Stagionalità
-# ---------------------------------------------------------
-st.markdown("#### 📈 Relazione tra crescita e stagionalità dei mercati")
-
-df_scatter = df_patterns.dropna(subset=["Trend medio", "Stagionalità media"]).copy()
-df_scatter["Trend medio (k)"] = df_scatter["Trend medio"] / 1000  # scala più leggibile
-
-import altair as alt
-
-scatter_chart = (
-    alt.Chart(df_scatter)
-    .mark_circle(size=70, opacity=0.7)
-    .encode(
-        x=alt.X("Trend medio (k):Q", title="Crescita media annua (migliaia di presenze)"),
-        y=alt.Y("Stagionalità media:Q", title="Variabilità stagionale (dev. standard)"),
-        color=alt.Color("Pattern rilevato:N", title="Pattern rilevato"),
-        tooltip=["Paese", "Trend medio", "Stagionalità media", "Pattern rilevato"]
-    )
-    .properties(height=450)
-    .interactive()
-)
-st.altair_chart(scatter_chart, use_container_width=True)
-
     
     # Sintesi mercati promettenti
     promising = df_patterns[df_patterns["Pattern rilevato"].isin(["📈 Crescita costante", "🔁 Ciclico / variabile"])].head(10)
