@@ -1,0 +1,14 @@
+progressivo;anno;ambito territoriale;dettaglio;Mese;Arrivi italiani;Arrivi stranieri;Presenze italiani;Presenze stranieri;Totale arrivi;Totale presenze
+1;2025, periodo Gennaio-Settembre;STL;02 Belluno;Gennaio;6484;1647;18285;4435;8131;22720
+2;2025, periodo Gennaio-Settembre;STL;02 Belluno;Febbraio;6217;1720;16552;4873;7937;21425
+3;2025, periodo Gennaio-Settembre;STL;02 Belluno;Marzo;5920;1651;17658;4976;7571;22634
+4;2025, periodo Gennaio-Settembre;STL;02 Belluno;Aprile;8460;3226;21245;8932;11686;30177
+5;2025, periodo Gennaio-Settembre;STL;02 Belluno;Maggio;9188;5775;22500;14412;14963;36912
+6;2025, periodo Gennaio-Settembre;STL;02 Belluno;Giugno;11585;10762;27579;25587;22347;53166
+7;2025, periodo Gennaio-Settembre;STL;02 Belluno;Luglio;12327;15852;40666;44226;28179;84892
+8;2025, periodo Gennaio-Settembre;STL;02 Belluno;Agosto;16069;16300;53085;43370;32369;96455
+9;2025, periodo Gennaio-Settembre;STL;02 Belluno;Settembre;9454;10257;21885;19747;19711;41632
+10;2025, periodo Gennaio-Settembre;STL;02 Belluno;Ottobre;0;0;0;0;0;0
+11;2025, periodo Gennaio-Settembre;STL;02 Belluno;Novembre;0;0;0;0;0;0
+12;2025, periodo Gennaio-Settembre;STL;02 Belluno;Dicembre;0;0;0;0;0;0
+13;2025, periodo Gennaio-Settembre;STL;02 Belluno;TOTALE;85704;67190;239455;170558;152894;410013
