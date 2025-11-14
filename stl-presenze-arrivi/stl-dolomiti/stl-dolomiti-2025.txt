@@ -1,0 +1,14 @@
+progressivo;anno;ambito territoriale;dettaglio;Mese;Arrivi italiani;Arrivi stranieri;Presenze italiani;Presenze stranieri;Totale arrivi;Totale presenze
+1;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Gennaio;44498;38984;190254;188055;83482;378309
+2;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Febbraio;37182;52809;142142;265599;89991;407741
+3;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Marzo;28109;31209;119191;139218;59318;258409
+4;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Aprile;10745;11995;53924;31842;22740;85766
+5;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Maggio;12855;25692;42668;53064;38547;95732
+6;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Giugno;40388;97216;121993;217240;137604;339233
+7;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Luglio;68001;123861;340367;306825;191862;647192
+8;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Agosto;90184;102445;488984;249766;192629;738750
+9;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Settembre;33316;96547;109642;209970;129863;319612
+10;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Ottobre;0;0;0;0;0;0
+11;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Novembre;0;0;0;0;0;0
+12;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;Dicembre;0;0;0;0;0;0
+13;2025, periodo Gennaio-Settembre;STL;01 Dolomiti;TOTALE;365278;580758;1609165;1661579;946036;3270744
