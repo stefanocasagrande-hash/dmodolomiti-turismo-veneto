@@ -58,8 +58,68 @@ else:
         st.subheader(f"🏙️ {comune}")
         cols = st.columns(len(anno_sel))
         for i, anno in enumerate(anno_sel):
-            tot_pres = int(df_filtered[(df_filtered["anno"] == anno) & (df_filtered["comune"] == comune)]["presenze"].sum())
+            tot_pres = int(
+                df_filtered[(df_filtered["anno"] == anno) & (df_filtered["comune"] == comune)]["presenze"].sum()
+            )
             cols[i].metric(f"Presenze {anno}", f"{tot_pres:,}".replace(",", "."))
+
+        # ======================
+        # 📊 VARIAZIONE % COMPLESSIVA (solo se sono selezionati 2 anni)
+        # ======================
+        if len(anno_sel) == 2:
+            anno_prev, anno_recent = sorted(anno_sel)
+
+            # dati solo di questo comune
+            df_com = df_filtered[df_filtered["comune"] == comune].copy()
+
+            # mesi con valore >0 nell'anno più recente → mesi realmente alimentati
+            recent_months = (
+                df_com[df_com["anno"] == anno_recent][["mese", "presenze"]]
+                .dropna(subset=["presenze"])
+            )
+            recent_months = recent_months[recent_months["presenze"] > 0]["mese"].unique().tolist()
+
+            # Ordine dei mesi
+            mesi_ordine = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"]
+            mesi_disponibili = [m for m in mesi_ordine if m in recent_months]
+
+            if not mesi_disponibili:
+                st.warning(
+                    f"Impossibile calcolare la variazione per {comune}: nessun mese con valore > 0 nel {anno_recent}."
+                )
+            else:
+                mask_prev = (df_com["anno"] == anno_prev) & (df_com["mese"].isin(mesi_disponibili))
+                mask_recent = (df_com["anno"] == anno_recent) & (df_com["mese"].isin(mesi_disponibili))
+
+                prev_val = df_com.loc[mask_prev, "presenze"].sum()
+                recent_val = df_com.loc[mask_recent, "presenze"].sum()
+
+                if prev_val and prev_val != 0:
+                    var_pct = (recent_val - prev_val) / prev_val * 100
+                else:
+                    var_pct = float("nan")
+
+                color = (
+                    "green" if not pd.isna(var_pct) and var_pct > 0
+                    else "red" if not pd.isna(var_pct) and var_pct < 0
+                    else "grey"
+                )
+
+                mesi_str = ", ".join(mesi_disponibili)
+                st.markdown(
+                    f"<div style='font-size:13px;color:gray;'>Confronto effettuato sui mesi con dati in {anno_recent}: <i>{mesi_str}</i></div>",
+                    unsafe_allow_html=True
+                )
+
+                display_var = f"{var_pct:+.2f}%" if not pd.isna(var_pct) else "N/A"
+
+                st.markdown(
+                    f"<div style='font-size:20px;'><b>Variazione complessiva Presenze</b> "
+                    f"{anno_recent} vs {anno_prev}: "
+                    f"<span style='color:{color};'>{display_var}</span></div>",
+                    unsafe_allow_html=True
+                )
+)
 
 # ======================
 # 📈 ANDAMENTO MENSILE (COMUNI)
