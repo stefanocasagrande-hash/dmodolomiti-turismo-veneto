@@ -280,30 +280,39 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
             cols[i].metric(f"{sel_metrica} {anno}", f"{tot_val:,}".replace(",", "."))
 
         # ======================
-        # 📊 VARIAZIONE % COMPLESSIVA (considera solo i mesi disponibili nell'anno più recente)
+        # 📊 VARIAZIONE % COMPLESSIVA (considera solo i mesi con valore > 0 nell'anno più recente)
         # ======================
         if len(anni_sel_stl) == 2:
             anno_prev, anno_recent = sorted(anni_sel_stl)
 
-            # mesi effettivamente presenti nell'anno più recente
-            mesi_disponibili = stl_filtrata.loc[stl_filtrata["anno"] == anno_recent, "mese"].dropna().unique().tolist()
+            # metrica selezionata (arrivi o presenze)
+            metr = sel_metrica.lower()
 
-            # mantieni l'ordine naturale dei mesi (Gen→Dic) se definito
+            # Prendi i mesi dell'anno recente che hanno valore > 0 (cioè mesi con dati reali)
+            recent_months = (
+                stl_filtrata.loc[stl_filtrata["anno"] == anno_recent, ["mese", metr]]
+                .dropna(subset=[metr])
+            )
+
+            # considera solo mesi con valore strettamente positivo
+            recent_months = recent_months[recent_months[metr] > 0]["mese"].unique().tolist()
+
+            # Ordine naturale dei mesi
             mesi_ordine = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
-            mesi_disponibili = [m for m in mesi_ordine if m in mesi_disponibili]
+            mesi_disponibili = [m for m in mesi_ordine if m in recent_months]
 
             if not mesi_disponibili:
-                st.warning(f"Impossibile calcolare la variazione: non ci sono mesi disponibili per l'anno {anno_recent}.")
+                st.warning(f"Impossibile calcolare la variazione: non ci sono mesi con dati (>0) per l'anno {anno_recent}.")
             else:
-                # Filtra entrambi gli anni solo sui mesi disponibili nell'anno recente
+                # Filtra entrambi gli anni solo sui mesi disponibili (con dati) del recent year
                 mask_prev = (stl_filtrata["anno"] == anno_prev) & (stl_filtrata["mese"].isin(mesi_disponibili))
                 mask_recent = (stl_filtrata["anno"] == anno_recent) & (stl_filtrata["mese"].isin(mesi_disponibili))
 
-                prev_val = stl_filtrata.loc[mask_prev, sel_metrica.lower()].sum()
-                recent_val = stl_filtrata.loc[mask_recent, sel_metrica.lower()].sum()
+                prev_val = stl_filtrata.loc[mask_prev, metr].sum()
+                recent_val = stl_filtrata.loc[mask_recent, metr].sum()
 
                 # calcolo variazione protetto da divisione per zero
-                if prev_val:
+                if prev_val and prev_val != 0:
                     var_pct = ((recent_val - prev_val) / prev_val) * 100
                 else:
                     var_pct = float("nan")
@@ -311,10 +320,10 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
                 # colore
                 color = "green" if (not pd.isna(var_pct) and var_pct > 0) else ("red" if (not pd.isna(var_pct) and var_pct < 0) else "grey")
 
-                # stringhe di visualizzazione
-                mesi_str = " - ".join(mesi_disponibili)
+                # mostra quali mesi sono stati usati per il confronto
+                mesi_str = ", ".join(mesi_disponibili)
                 st.markdown(
-                    f"<div style='font-size:13px;color:gray;'>Confronto effettuato sui mesi disponibili in {anno_recent}: <i>{mesi_str}</i></div>",
+                    f"<div style='font-size:13px;color:gray;'>Confronto effettuato sui mesi con dati in {anno_recent}: <i>{mesi_str}</i></div>",
                     unsafe_allow_html=True
                 )
 
@@ -325,7 +334,6 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
                     f"<span style='color:{color};'>{display_var}</span></div>",
                     unsafe_allow_html=True
                 )
-
 
         # ======================
         # 📈 GRAFICO STL
