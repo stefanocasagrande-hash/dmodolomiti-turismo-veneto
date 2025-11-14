@@ -119,7 +119,6 @@ else:
                     f"<span style='color:{color};'>{display_var}</span></div>",
                     unsafe_allow_html=True
                 )
-)
 
 # ======================
 # 📈 ANDAMENTO MENSILE (COMUNI)
