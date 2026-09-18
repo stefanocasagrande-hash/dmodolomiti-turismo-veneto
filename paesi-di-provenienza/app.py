@@ -191,7 +191,7 @@ if len(anni) >= 2:
             "Differenza assoluta": "{:+,.0f}",
             "Differenza %": "{:+.2f} %",
         })
-        .applymap(color_diff, subset=["Differenza assoluta", "Differenza %"]),
+        .map(color_diff, subset=["Differenza assoluta", "Differenza %"]),
         use_container_width=True,
     )
 
@@ -396,7 +396,7 @@ if not df_patterns.empty:
             "Crescita % media annua (CAGR)": "{:+.2f} %",
             "Indice di stagionalità (%)": "{:.1f} %",
         })
-        .applymap(
+        .map(
             lambda v: "color:#2ecc71;" if isinstance(v, str) and "Crescita" in v
             else ("color:#e67e22;" if isinstance(v, str) and "Ciclico" in v
             else ("color:#e74c3c;" if isinstance(v, str) and "calo" in v.lower()
