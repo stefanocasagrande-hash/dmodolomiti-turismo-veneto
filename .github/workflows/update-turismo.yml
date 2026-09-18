@@ -52,7 +52,7 @@ jobs:
       - name: Pubblica solo dati validati
         if: github.event_name != 'pull_request'
         run: |
-          if git diff --quiet -- data/raw data/processed; then
+          if [ -z "$(git status --porcelain -- data/raw data/processed)" ]; then
             echo "Nessun nuovo dato da pubblicare."
             exit 0
           fi
