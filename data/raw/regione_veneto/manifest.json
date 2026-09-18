@@ -1,0 +1,192 @@
+{
+  "description": "Archivio delle fonti ufficiali Regione Veneto, conservate senza modifiche.",
+  "files": {
+    "2021/comuni_veneto_arrivi.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 42905,
+      "sha256": "d9df167e8ed77e98ffbe3edfc0239add55450bfe275a47af2304d5ac88707bcb",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2021&provenienza=0&x1=2"
+    },
+    "2021/comuni_veneto_presenze.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 45986,
+      "sha256": "b32194f2452775123ea058d797f59a08e8170c7bdb00af768af96c08fff68608",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2021&provenienza=0&x1=3"
+    },
+    "2021/provincia_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1078,
+      "sha256": "cc433e1fb0d9cb4ca6f2a60921c4290fd13789532fe7a536936d1c3c542e3376",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2021&D1=PROVINCIA&D2=02Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2021/stl_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 987,
+      "sha256": "70d40d47a9427c295438539f548c6f70a8eca058d6651f5eb52155f6285bbadb",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2021&D1=STL&D2=0102+Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2021/stl_dolomiti.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1041,
+      "sha256": "257747856aa6ec53f19d47ab969006b458a240b9fff8af20b01afba8873fa4b2",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2021&D1=STL&D2=0001+Dolomiti&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2022/comuni_veneto_arrivi.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 36999,
+      "sha256": "36be0c53e27513e5546af45e6bdd080739cf602718a23536fd7e41516dfad05a",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2022&provenienza=0&x1=2"
+    },
+    "2022/comuni_veneto_presenze.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 39143,
+      "sha256": "16cbe0b21930cb0845543ecd8822f19cd6e7e93fe75534d830464bfb9bc4dad7",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2022&provenienza=0&x1=3"
+    },
+    "2022/provincia_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1100,
+      "sha256": "fc083c7bbe0382e93b208eb408744839d4d12418370f2981b679dcc061836b8b",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2022&D1=PROVINCIA&D2=02Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2022/stl_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 994,
+      "sha256": "2a1c86740b510d27718ce57cd0789c17efb6f0b17d657d60bc78cfffb5434410",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2022&D1=STL&D2=0102+Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2022/stl_dolomiti.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1065,
+      "sha256": "81d2cfec8d4170a1f97156d0d3ec624d1db2437556ec302601d88e62d071ae9b",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2022&D1=STL&D2=0001+Dolomiti&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2023/comuni_veneto_arrivi.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 41856,
+      "sha256": "ad7c6feb878cb6bc90d27823c3cb5969b8a0d39d384896a8403d9a99d6fb6fa5",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2023&provenienza=0&x1=2"
+    },
+    "2023/comuni_veneto_presenze.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 44147,
+      "sha256": "c9ace4ea1749bff0e1411fd04a0dd090c267558e6824ab3f7ff48f550d862100",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2023&provenienza=0&x1=3"
+    },
+    "2023/provincia_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1105,
+      "sha256": "f2fb48578e248c3a81a2cb2ef71b1cbdc495a23da61aefa4307e56d5eab904b5",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2023&D1=PROVINCIA&D2=02Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2023/stl_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1000,
+      "sha256": "f7e675f75c5bfa1ea40c2260779e25ac7f951c30beae75cb11f226e60d79c4a3",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2023&D1=STL&D2=0102+Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2023/stl_dolomiti.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1068,
+      "sha256": "b2d5ac8ec205fa946646f4dd4638ba0bf06ce8d68bbd41fcece95bbe1f7313a3",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2023&D1=STL&D2=0001+Dolomiti&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2024/comuni_veneto_arrivi.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 42072,
+      "sha256": "515c78aa91e068df7067d8fea704c3c39b4f24c55d1cd440f32f211e0f737be1",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2024&provenienza=0&x1=2"
+    },
+    "2024/comuni_veneto_presenze.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 44321,
+      "sha256": "cd3e34a212d164b8eaf88deac1c060aab464b0451d43931e1c4365845e688132",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2024&provenienza=0&x1=3"
+    },
+    "2024/provincia_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1105,
+      "sha256": "c0e88c3c0b3a2b11e0c7bb4259192ba1f965a3b539cdb4722f2a58507a791994",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2024&D1=PROVINCIA&D2=02Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2024/stl_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 998,
+      "sha256": "d036c4b6ae25cd24b94232994decd2f8c666ebf1c0feff22166cc023ae76b3ca",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2024&D1=STL&D2=0102+Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2024/stl_dolomiti.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1072,
+      "sha256": "26cc21288587048ef12fdceffd6cab56b3ef0f2d3a8838f6e2d16747c524e311",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2024&D1=STL&D2=0001+Dolomiti&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2025/comuni_veneto_arrivi.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 43264,
+      "sha256": "a3a75e532d8012ce891249b7a6b86dbccae7639c3ceb368127a3b6eab7c12c76",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2025&provenienza=0&x1=2"
+    },
+    "2025/comuni_veneto_presenze.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 45549,
+      "sha256": "ad20818a41f7afc78d897c40a32401bebbbc515aa53aa431953c7bdf98b1be3c",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2025&provenienza=0&x1=3"
+    },
+    "2025/provincia_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1110,
+      "sha256": "762b54dd38700ade28a114264e3a72d32fa07290726116e761eee14f69835738",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2025&D1=PROVINCIA&D2=02Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2025/stl_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1003,
+      "sha256": "f069c303135c5b82a471e29f6e8e1c681057cd55d6eb6f1768d7b414b2de098b",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2025&D1=STL&D2=0102+Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2025/stl_dolomiti.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1077,
+      "sha256": "2fb9416a01c26603e2cbec0af1c47b6b3f01771722c3321261af4141eeb019f0",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2025&D1=STL&D2=0001+Dolomiti&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2026/Movimento_turistico_gennaio_luglio_2026.xlsx": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 62785,
+      "sha256": "f8fd95dee7d81a38a2cda28617e4a4fad53f57f824dfabdec443c87e91f93efc",
+      "source_url": "https://statistica.regione.veneto.it/excel/Turismo/Movimento_turistico_gennaio_luglio_2026.xlsx"
+    },
+    "2026/comuni_veneto_arrivi.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 38032,
+      "sha256": "de668e02d24a241a447c656555dd703016b6f3fc972f5db42fedaebacb821c7c",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2026&provenienza=0&x1=2"
+    },
+    "2026/comuni_veneto_presenze.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 39441,
+      "sha256": "7f602160f1e049a56eb7e1f2d5830766f9490410e6866b178539b275519e144e",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turismo_comune6txt.jsp?anno=2026&provenienza=0&x1=3"
+    },
+    "2026/provincia_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1286,
+      "sha256": "86b9fce36f4a71c686278dc564af5cb9efbaa7d884d06511e3a3f3233da6a6e2",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2026&D1=PROVINCIA&D2=02Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2026/stl_belluno.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1205,
+      "sha256": "0e5646b901abd29f165d9afdcf73e00c97dc6a1f02d6b3bbf7975dc748d69c49",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2026&D1=STL&D2=0102+Belluno&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    },
+    "2026/stl_dolomiti.csv": {
+      "acquired_at_utc": "2026-09-18T12:32:06+00:00",
+      "bytes": 1259,
+      "sha256": "9ce3f7f47103dba991836bdeff08995ad04b83e25a1abf77aa7e517b4361faa1",
+      "source_url": "https://statistica.regione.veneto.it/jsp/turi1txt.jsp?D0=2026&D1=STL&D2=0001+Dolomiti&D3=Movimento+annuale+per+mese&B1=Visualizza"
+    }
+  },
+  "source": "Regione del Veneto - U.O. Sistema Statistico Regionale"
+}
