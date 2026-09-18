@@ -7,3 +7,4 @@ matplotlib
 requests
 pytrends
 plotly
+jinja2>=3.1
