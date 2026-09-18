@@ -1,8 +1,8 @@
 # Pipeline dati Regione Veneto
 
 Questa pipeline elimina il passaggio manuale di download, pulizia e caricamento dei
-dati turistici ufficiali. La dashboard Streamlit esistente non viene ancora
-modificata: il nuovo livello dati viene costruito e verificato in parallelo.
+dati turistici ufficiali. La dashboard Streamlit legge direttamente il dataset
+validato pubblicato dalla pipeline.
 
 ## Fonti acquisite
 
