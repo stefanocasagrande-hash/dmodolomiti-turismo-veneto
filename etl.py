@@ -1,202 +1,133 @@
-import os
+"""Caricamento del dataset turistico validato usato dalla dashboard Streamlit."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
 import pandas as pd
 
-# =========================
-# 📁 Utility per i percorsi
-# =========================
-def _resolve_path(relative_path: str) -> str:
-    """
-    Restituisce il percorso assoluto, anche se l'app è eseguita da directory diverse.
-    """
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    full_path = os.path.join(base_path, relative_path)
 
-    if not os.path.exists(full_path):
-        # Tentativo aggiuntivo: includi la cartella madre 'stefanocasagrande-hash'
-        alt_path = os.path.join(base_path, "stefanocasagrande-hash", relative_path)
-        if os.path.exists(alt_path):
-            return alt_path
-        print(f"⚠️ Percorso non trovato: {full_path}")
-        return relative_path
-    return full_path
+DEFAULT_DATASET = "data/processed/movimento_turistico.csv"
+
+MONTH_ABBREVIATIONS = {
+    1: "Gen",
+    2: "Feb",
+    3: "Mar",
+    4: "Apr",
+    5: "Mag",
+    6: "Giu",
+    7: "Lug",
+    8: "Ago",
+    9: "Set",
+    10: "Ott",
+    11: "Nov",
+    12: "Dic",
+}
+
+REQUIRED_COLUMNS = {
+    "anno",
+    "mese_num",
+    "ambito",
+    "territorio_codice",
+    "territorio",
+    "provenienza",
+    "arrivi",
+    "presenze",
+}
 
 
-# =========================
-# 1️⃣ CARICAMENTO DATI COMUNALI
-# =========================
-def load_dati_comunali(data_folder="dmodolomiti-turismo-veneto/dati-mensili-per-comune"):
-    data_folder = _resolve_path(data_folder)
-    frames = []
+def _resolve_path(relative_path: str | Path) -> Path:
+    """Restituisce un percorso assoluto relativo alla cartella dell'app."""
+    path = Path(relative_path)
+    if path.is_absolute():
+        return path
+    return Path(__file__).resolve().parent / path
 
-    mesi_map = {
-        "Gen": "Gennaio", "Feb": "Febbraio", "Mar": "Marzo", "Apr": "Aprile",
-        "Mag": "Maggio", "Giu": "Giugno", "Lug": "Luglio", "Ago": "Agosto",
-        "Set": "Settembre", "Ott": "Ottobre", "Nov": "Novembre", "Dic": "Dicembre"
-    }
 
-    if not os.path.exists(data_folder):
-        print(f"❌ Cartella non trovata: {data_folder}")
+def _load_validated_data(data_path: str | Path = DEFAULT_DATASET) -> pd.DataFrame:
+    """Legge e controlla lo schema minimo del dataset pubblicato dalla pipeline."""
+    path = _resolve_path(data_path)
+    if not path.exists():
         return pd.DataFrame()
 
-    for file in os.listdir(data_folder):
-        if not file.lower().endswith(".txt"):
-            continue
-        path = os.path.join(data_folder, file)
+    data = pd.read_csv(path, dtype={"territorio_codice": "string"})
+    missing_columns = REQUIRED_COLUMNS.difference(data.columns)
+    if missing_columns:
+        missing = ", ".join(sorted(missing_columns))
+        raise ValueError(f"Dataset validato privo delle colonne richieste: {missing}")
 
-        if os.path.getsize(path) == 0:
-            print(f"⚠️ File vuoto saltato: {file}")
-            continue
+    data = data.copy()
+    data["anno"] = pd.to_numeric(data["anno"], errors="raise").astype(int)
+    data["mese_num"] = pd.to_numeric(data["mese_num"], errors="raise").astype(int)
+    data["arrivi"] = pd.to_numeric(data["arrivi"], errors="raise").astype(int)
+    data["presenze"] = pd.to_numeric(data["presenze"], errors="raise").astype(int)
+    data["mese"] = data["mese_num"].map(MONTH_ABBREVIATIONS)
 
-        try:
-            df = pd.read_csv(path, sep=";", encoding="utf-8")
-        except UnicodeDecodeError:
-            df = pd.read_csv(path, sep=";", encoding="latin1")
-        except Exception as e:
-            print(f"⚠️ Errore nella lettura di {file}: {e}")
-            continue
+    if data["mese"].isna().any():
+        invalid_months = sorted(data.loc[data["mese"].isna(), "mese_num"].unique())
+        raise ValueError(f"Numeri di mese non validi nel dataset: {invalid_months}")
 
-        if "Comuni" not in df.columns:
-            print(f"⚠️ File senza colonna 'Comuni': {file}")
-            continue
-
-        # Estrai anno dal nome file
-        year = "".join([c for c in file if c.isdigit()])
-        anno = int(year) if year else None
-
-        # Trasforma le colonne mensili in formato lungo
-        mesi_cols = [c for c in df.columns if "Presenze" in c and any(m in c for m in mesi_map.keys())]
-        df_long = df.melt(
-            id_vars=["Comuni"],
-            value_vars=mesi_cols,
-            var_name="mese",
-            value_name="presenze"
-        )
-
-        df_long["mese"] = df_long["mese"].str.extract(r"^(\w{3})")[0]
-        df_long["mese"] = pd.Categorical(df_long["mese"], categories=list(mesi_map.keys()), ordered=True)
-
-        df_long["anno"] = anno
-        df_long["comune"] = df_long["Comuni"].str.strip()
-        df_long.drop(columns=["Comuni"], inplace=True)
-        df_long["presenze"] = pd.to_numeric(df_long["presenze"], errors="coerce").fillna(0).astype(int)
-
-        frames.append(df_long)
-
-    if not frames:
-        print("⚠️ Nessun file valido trovato.")
-        return pd.DataFrame()
-
-    data = pd.concat(frames, ignore_index=True)
-    data = data.sort_values(["anno", "comune", "mese"])
     return data
 
 
-# =========================
-# 2️⃣ CARICAMENTO DATI PROVINCIALI
-# =========================
-def load_provincia_belluno(data_folder="dmodolomiti-turismo-veneto/dati-provincia-annuali"):
-    data_folder = _resolve_path(data_folder)
-    frames = []
+def _totals_for_scope(data: pd.DataFrame, scope: str) -> pd.DataFrame:
+    """Seleziona le righe totali evitando duplicazioni per provenienza."""
+    return data[
+        data["ambito"].astype(str).str.upper().eq(scope)
+        & data["provenienza"].astype(str).str.casefold().eq("totale")
+    ].copy()
 
-    if not os.path.exists(data_folder):
+
+def load_dati_comunali(data_path: str | Path = DEFAULT_DATASET) -> pd.DataFrame:
+    """Restituisce arrivi e presenze mensili dei Comuni nel formato della dashboard."""
+    data = _load_validated_data(data_path)
+    if data.empty:
         return pd.DataFrame()
 
-    for file in os.listdir(data_folder):
-        if not file.endswith(".txt"):
-            continue
-        path = os.path.join(data_folder, file)
+    comuni = _totals_for_scope(data, "COMUNE").rename(
+        columns={"territorio": "comune"}
+    )
+    return (
+        comuni[["anno", "mese_num", "mese", "comune", "arrivi", "presenze"]]
+        .sort_values(["anno", "comune", "mese_num"])
+        .reset_index(drop=True)
+    )
 
-        try:
-            df = pd.read_csv(path, sep=";", encoding="utf-8")
-        except UnicodeDecodeError:
-            df = pd.read_csv(path, sep=";", encoding="latin1")
 
-        df.columns = [c.strip().lower() for c in df.columns]
-        if not {"mese", "totale arrivi", "totale presenze"}.issubset(df.columns):
-            continue
-
-        df["arrivi"] = df["totale arrivi"]
-        df["presenze"] = df["totale presenze"]
-        frames.append(df[["anno", "mese", "arrivi", "presenze"]])
-
-    if not frames:
+def load_provincia_belluno(data_path: str | Path = DEFAULT_DATASET) -> pd.DataFrame:
+    """Restituisce i totali mensili della Provincia di Belluno."""
+    data = _load_validated_data(data_path)
+    if data.empty:
         return pd.DataFrame()
 
-    return pd.concat(frames, ignore_index=True)
+    provincia = _totals_for_scope(data, "PROVINCIA")
+    provincia = provincia[
+        provincia["territorio_codice"].astype(str).str.upper().eq("BL")
+        | provincia["territorio"].astype(str).str.casefold().eq("belluno")
+    ]
+    return (
+        provincia[["anno", "mese_num", "mese", "arrivi", "presenze"]]
+        .sort_values(["anno", "mese_num"])
+        .reset_index(drop=True)
+    )
 
 
-# =========================
-# 3️⃣ CARICAMENTO DATI STL
-# =========================
-def load_stl_data(base_folder="dmodolomiti-turismo-veneto/stl-presenze-arrivi"):
-    base_folder = _resolve_path(base_folder)
-    stl_dolomiti = pd.DataFrame()
-    stl_belluno = pd.DataFrame()
+def load_stl_data(
+    data_path: str | Path = DEFAULT_DATASET,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Restituisce, nell'ordine, STL Dolomiti e STL Belluno-Feltre-Alpago."""
+    data = _load_validated_data(data_path)
+    if data.empty:
+        return pd.DataFrame(), pd.DataFrame()
 
-    for tipo in ["stl-dolomiti", "stl-belluno"]:
-        folder = os.path.join(base_folder, tipo)
-        frames = []
-        if not os.path.exists(folder):
-            continue
-        for file in os.listdir(folder):
-            if not file.endswith(".txt"):
-                continue
-            path = os.path.join(folder, file)
-            try:
-                df = pd.read_csv(path, sep=";", encoding="utf-8")
-            except UnicodeDecodeError:
-                df = pd.read_csv(path, sep=";", encoding="latin1")
-            except Exception as e:
-                print(f"⚠️ Errore lettura STL {file}: {e}")
-                continue
+    stl = _totals_for_scope(data, "STL")
+    codes = stl["territorio_codice"].astype(str).str.zfill(2)
+    names = stl["territorio"].astype(str).str.casefold()
 
-            # Normalizza nomi colonne
-            cols_lower = [c.strip() for c in df.columns]
-            df.columns = cols_lower
+    dolomiti = stl[(codes == "01") | names.eq("dolomiti")]
+    belluno = stl[(codes == "02") | names.str.contains("belluno", na=False)]
 
-            # Individua colonne (variazioni possibili)
-            col_mese = None
-            col_arrivi = None
-            col_presenze = None
-            for c in df.columns:
-                cl = c.lower()
-                if "mese" == cl or cl.startswith("mese"):
-                    col_mese = c
-                if "arrivi" in cl:
-                    col_arrivi = c
-                if "presenze" in cl:
-                    col_presenze = c
-
-            if not (col_mese and (col_arrivi or "totale arrivi" in df.columns) and (col_presenze or "totale presenze" in df.columns)):
-                # salta file non conformi
-                continue
-
-            # rinomina colonne in standard
-            df = df.rename(columns={col_mese: "mese", col_arrivi: "arrivi", col_presenze: "presenze"})
-
-            # Some files may have a 'Totale' row: remove it
-            df["mese"] = df["mese"].astype(str).str.strip()
-            df = df[~df["mese"].str.lower().str.contains(r"^tot")]  # rimuove 'Totale','TOTALE', ecc.
-
-            # keep only valid month labels (first 3 letter codes if present)
-            df["mese"] = df["mese"].str[:3].str.capitalize()
-            mesi_validi = ["Gen","Feb","Mar","Apr","Mag","Giu","Lug","Ago","Set","Ott","Nov","Dic"]
-            df = df[df["mese"].isin(mesi_validi)]
-
-            # Estrai anno dal nome file
-            year = "".join([c for c in file if c.isdigit()])
-            df["anno"] = int(year) if year else None
-
-            # Converti numeri
-            df["arrivi"] = pd.to_numeric(df["arrivi"], errors="coerce").fillna(0).astype(int)
-            df["presenze"] = pd.to_numeric(df["presenze"], errors="coerce").fillna(0).astype(int)
-
-            frames.append(df[["anno", "mese", "arrivi", "presenze"]])
-
-        if frames:
-            if tipo == "stl-dolomiti":
-                stl_dolomiti = pd.concat(frames, ignore_index=True)
-            else:
-                stl_belluno = pd.concat(frames, ignore_index=True)
-
-    return stl_dolomiti, stl_belluno
+    columns = ["anno", "mese_num", "mese", "arrivi", "presenze"]
+    dolomiti = dolomiti[columns].sort_values(["anno", "mese_num"]).reset_index(drop=True)
+    belluno = belluno[columns].sort_values(["anno", "mese_num"]).reset_index(drop=True)
+    return dolomiti, belluno
