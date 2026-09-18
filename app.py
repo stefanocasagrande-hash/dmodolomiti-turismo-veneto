@@ -182,7 +182,7 @@ if not df_filtered.empty:
 
         styled = (
             tabella_com.style.format(fmt, thousands=".")
-            .applymap(color_var, subset=["Variazione %"])
+            .map(color_var, subset=["Variazione %"])
         )
 
         st.dataframe(styled, use_container_width=True)
@@ -298,7 +298,7 @@ if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
 
             styled = (
                 tabella_prov.style.format(fmt, thousands=".")
-                .applymap(color_var, subset=[c for c in tabella_prov.columns if c[1] == "Variazione %"])
+                .map(color_var, subset=[c for c in tabella_prov.columns if c[1] == "Variazione %"])
             )
             st.dataframe(styled, use_container_width=True)
         else:
@@ -442,7 +442,7 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
 
             styled = (
                 tabella_stl.style.format(fmt, thousands=".")
-                .applymap(color_var, subset=["Variazione %"])
+                .map(color_var, subset=["Variazione %"])
             )
 
             st.markdown(
