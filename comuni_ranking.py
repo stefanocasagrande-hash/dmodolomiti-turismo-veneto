@@ -1,4 +1,4 @@
-"""Calcolo della classifica annuale delle presenze nei Comuni."""
+"""Calcolo delle classifiche annuali di arrivi e presenze nei Comuni."""
 
 from __future__ import annotations
 
@@ -27,13 +27,17 @@ def build_comuni_ranking(
     data: pd.DataFrame,
     target_year: int,
     selected_months: Iterable[str] | None = None,
+    metric: str = "presenze",
 ) -> ComuniRanking:
-    """Confronta le presenze del target con lo stesso periodo dell'anno prima.
+    """Confronta la metrica del target con lo stesso periodo dell'anno prima.
 
     Sono ammessi in classifica solo i Comuni con tutti i mesi richiesti presenti
     in entrambi gli anni. Questo evita che un mese mancante venga interpretato
     come uno zero e alteri la variazione percentuale.
     """
+
+    if metric not in {"arrivi", "presenze"}:
+        raise ValueError("La metrica deve essere 'arrivi' oppure 'presenze'.")
 
     comparison_year = int(target_year) - 1
     requested_months = set(selected_months if selected_months is not None else MONTH_ORDER)
@@ -85,7 +89,7 @@ def build_comuni_ranking(
 
     totals = (
         comparison[comparison["comune"].isin(eligible)]
-        .groupby(["comune", "anno"])["presenze"]
+        .groupby(["comune", "anno"])[metric]
         .sum()
         .unstack("anno")
         .reindex(columns=[comparison_year, target_year])

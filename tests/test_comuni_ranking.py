@@ -39,6 +39,15 @@ class ComuniRankingTests(unittest.TestCase):
                         }
                     )
         self.data = pd.DataFrame(rows)
+        self.data["arrivi"] = 100
+        self.data.loc[
+            self.data["anno"].eq(2026) & self.data["comune"].eq("Alfa"),
+            "arrivi",
+        ] = 50
+        self.data.loc[
+            self.data["anno"].eq(2026) & self.data["comune"].eq("Beta"),
+            "arrivi",
+        ] = 200
 
     def test_partial_year_uses_only_available_months_in_both_years(self) -> None:
         result = build_comuni_ranking(self.data, 2026)
@@ -67,6 +76,20 @@ class ComuniRankingTests(unittest.TestCase):
 
         self.assertTrue(result.data.empty)
         self.assertEqual(result.comparison_year, 2024)
+
+    def test_arrivals_use_the_same_ranking_rules(self) -> None:
+        result = build_comuni_ranking(self.data, 2026, metric="arrivi")
+
+        self.assertEqual(result.months, ["Gen", "Feb"])
+        self.assertEqual(result.data.iloc[0]["comune"], "Beta")
+        beta = result.data[result.data["comune"].eq("Beta")].iloc[0]
+        self.assertEqual(beta["previous_value"], 200)
+        self.assertEqual(beta["current_value"], 400)
+        self.assertAlmostEqual(beta["variation_pct"], 100.0)
+
+    def test_invalid_metric_is_rejected(self) -> None:
+        with self.assertRaises(ValueError):
+            build_comuni_ranking(self.data, 2026, metric="fatturato")
 
 
 if __name__ == "__main__":
