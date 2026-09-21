@@ -208,7 +208,7 @@ else:
 # ======================
 # 🏆 CLASSIFICA COMUNI
 # ======================
-st.subheader("🏆 Classifica Comuni – variazione Presenze")
+st.subheader("🏆 Classifica Comuni – variazione Arrivi e Presenze")
 
 if not anno_sel:
     st.info("Seleziona almeno un anno per visualizzare la classifica dei Comuni.")
@@ -216,14 +216,22 @@ else:
     # Con più anni selezionati la classifica resta leggibile prendendo sempre
     # come riferimento il più recente e confrontandolo con l'anno precedente.
     anno_classifica = max(anno_sel)
-    classifica = build_comuni_ranking(data, anno_classifica, mesi_sel)
 
-    if classifica.data.empty:
-        st.info(
-            f"Non ci sono dati sufficienti per confrontare il {classifica.target_year} "
-            f"con il {classifica.comparison_year}."
+    def render_comuni_ranking(metric, metric_label):
+        classifica = build_comuni_ranking(
+            data,
+            anno_classifica,
+            mesi_sel,
+            metric=metric,
         )
-    else:
+
+        if classifica.data.empty:
+            st.info(
+                f"Non ci sono dati sufficienti per confrontare il {classifica.target_year} "
+                f"con il {classifica.comparison_year}."
+            )
+            return
+
         mesi_classifica = ", ".join(classifica.months)
         st.caption(
             f"La classifica considera sempre l'anno più recente selezionato: "
@@ -239,11 +247,13 @@ else:
             )
 
         def format_ranking_table(ranking_df):
+            previous_column = f"{metric_label} {classifica.comparison_year}"
+            current_column = f"{metric_label} {classifica.target_year}"
             display = ranking_df.rename(
                 columns={
                     "comune": "Comune",
-                    "previous_value": f"Presenze {classifica.comparison_year}",
-                    "current_value": f"Presenze {classifica.target_year}",
+                    "previous_value": previous_column,
+                    "current_value": current_column,
                     "difference": "Differenza",
                     "variation_pct": "Variazione %",
                 }
@@ -264,8 +274,8 @@ else:
             return (
                 display.style.format(
                     {
-                        f"Presenze {classifica.comparison_year}": format_integer,
-                        f"Presenze {classifica.target_year}": format_integer,
+                        previous_column: format_integer,
+                        current_column: format_integer,
                         "Differenza": lambda value: f"{value:+,.0f}".replace(",", "."),
                         "Variazione %": "{:+.2f}%",
                     }
@@ -284,19 +294,25 @@ else:
 
         col_migliori, col_peggiori = st.columns(2)
         with col_migliori:
-            st.markdown("#### 📈 10 Comuni con la crescita maggiore")
+            st.markdown(f"#### 📈 10 Comuni con crescita maggiore – {metric_label}")
             st.dataframe(
                 format_ranking_table(migliori),
                 use_container_width=True,
                 hide_index=True,
             )
         with col_peggiori:
-            st.markdown("#### 📉 10 Comuni con la performance peggiore")
+            st.markdown(f"#### 📉 10 Comuni con performance peggiore – {metric_label}")
             st.dataframe(
                 format_ranking_table(peggiori),
                 use_container_width=True,
                 hide_index=True,
             )
+
+    tab_presenze, tab_arrivi = st.tabs(["🛏️ Presenze", "🧳 Arrivi"])
+    with tab_presenze:
+        render_comuni_ranking("presenze", "Presenze")
+    with tab_arrivi:
+        render_comuni_ranking("arrivi", "Arrivi")
 
 # ======================
 # 🏔️ PROVINCIA DI BELLUNO

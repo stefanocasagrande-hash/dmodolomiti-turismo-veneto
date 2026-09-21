@@ -29,8 +29,15 @@ class StreamlitAppTests(unittest.TestCase):
         self.assertEqual(comuni_years.value, [2025, 2026])
 
         ranking_titles = [markdown.value for markdown in app.markdown]
-        self.assertIn("#### 📈 10 Comuni con la crescita maggiore", ranking_titles)
-        self.assertIn("#### 📉 10 Comuni con la performance peggiore", ranking_titles)
+        for metric in ["Presenze", "Arrivi"]:
+            self.assertIn(
+                f"#### 📈 10 Comuni con crescita maggiore – {metric}",
+                ranking_titles,
+            )
+            self.assertIn(
+                f"#### 📉 10 Comuni con performance peggiore – {metric}",
+                ranking_titles,
+            )
 
         sidebar_labels = [checkbox.label for checkbox in app.sidebar.checkbox]
         self.assertIn("📍 Mostra dati Provincia di Belluno", sidebar_labels)
