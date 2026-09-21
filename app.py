@@ -41,7 +41,7 @@ anni = sorted(data["anno"].unique())
 comuni = sorted(data["comune"].unique())
 mesi = ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]
 
-anno_sel = st.sidebar.multiselect("Anno (Comuni)", anni, default=anni)
+anno_sel = st.sidebar.multiselect("Anno (Comuni)", anni, default=anni[-2:])
 comune_sel = st.sidebar.multiselect("Comune", comuni, default=[comuni[0]])
 mesi_sel = st.sidebar.multiselect("Mese", mesi, default=mesi)
 
@@ -202,7 +202,7 @@ if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
 
         # Filtri anni
         anni_prov = sorted(provincia["anno"].unique())
-        anni_sel_prov = st.sidebar.multiselect("Anno (Provincia)", anni_prov, default=[anni_prov[-1]])
+        anni_sel_prov = st.sidebar.multiselect("Anno (Provincia)", anni_prov, default=anni_prov[-2:])
 
         # Filtra dati e rimuovi righe "Totale"
         prov_filtrata = provincia[provincia["anno"].isin(anni_sel_prov)].copy()
@@ -225,6 +225,69 @@ if st.sidebar.checkbox("📍 Mostra dati Provincia di Belluno"):
             tot_pre = int(dati_anno["presenze"].sum())
             cols[i].metric(f"Arrivi {anno}", f"{tot_arr:,}".replace(",", "."))
             cols[i].metric(f"Presenze {anno}", f"{tot_pre:,}".replace(",", "."))
+
+        # Confronta i due anni selezionati usando solo i mesi pubblicati
+        # nell'anno più recente, senza trasformare i mesi futuri in zeri.
+        if len(anni_sel_prov) == 2:
+            anno_prev, anno_recent = sorted(anni_sel_prov)
+            recent_months = (
+                prov_filtrata.loc[prov_filtrata["anno"] == anno_recent, "mese"]
+                .dropna()
+                .astype(str)
+                .unique()
+                .tolist()
+            )
+            mesi_disponibili = [mese for mese in mesi_ordine if mese in recent_months]
+
+            if mesi_disponibili:
+                mesi_str = ", ".join(mesi_disponibili)
+                st.markdown(
+                    f"<div style='font-size:13px;color:gray;'>"
+                    f"Confronto effettuato sui mesi con dati in {anno_recent}: "
+                    f"<i>{mesi_str}</i></div>",
+                    unsafe_allow_html=True,
+                )
+
+                mask_prev = (
+                    (prov_filtrata["anno"] == anno_prev)
+                    & (prov_filtrata["mese"].isin(mesi_disponibili))
+                )
+                mask_recent = (
+                    (prov_filtrata["anno"] == anno_recent)
+                    & (prov_filtrata["mese"].isin(mesi_disponibili))
+                )
+
+                confronto_cols = st.columns(2)
+                for col, metrica, etichetta in zip(
+                    confronto_cols,
+                    ["arrivi", "presenze"],
+                    ["Arrivi", "Presenze"],
+                ):
+                    valore_prev = prov_filtrata.loc[mask_prev, metrica].sum()
+                    valore_recent = prov_filtrata.loc[mask_recent, metrica].sum()
+                    differenza = int(valore_recent - valore_prev)
+                    variazione_pct = (
+                        differenza / valore_prev * 100
+                        if valore_prev != 0
+                        else float("nan")
+                    )
+                    differenza_display = f"{differenza:+,}".replace(",", ".")
+                    percentuale_display = (
+                        f"{variazione_pct:+.2f}%"
+                        if not pd.isna(variazione_pct)
+                        else None
+                    )
+                    col.metric(
+                        f"Variazione complessiva {etichetta} "
+                        f"{anno_recent} vs {anno_prev}",
+                        differenza_display,
+                        percentuale_display,
+                    )
+            else:
+                st.warning(
+                    f"Impossibile calcolare la variazione: non ci sono mesi "
+                    f"disponibili per il {anno_recent}."
+                )
 
         # ======================
         # 📊 GRAFICI ANDAMENTO MENSILE
@@ -318,7 +381,7 @@ if st.sidebar.checkbox("📍 Mostra dati STL"):
         st.header(f"🌄 STL {tipo} – Arrivi e Presenze mensili")
 
         anni_stl = sorted(stl_data["anno"].unique())
-        anni_sel_stl = st.sidebar.multiselect("Anno (STL)", anni_stl, default=[anni_stl[-1]])
+        anni_sel_stl = st.sidebar.multiselect("Anno (STL)", anni_stl, default=anni_stl[-2:])
         sel_metrica = st.sidebar.radio("Seleziona metrica", ("Presenze", "Arrivi"))
 
         # Pulizia e ordinamento dati
