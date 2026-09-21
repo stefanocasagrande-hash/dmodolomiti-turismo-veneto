@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import unittest
 from pathlib import Path
 
@@ -11,11 +12,13 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 
 class StreamlitAppTests(unittest.TestCase):
     def test_dashboard_renders_comuni_provincia_and_stl_without_errors(self) -> None:
+        test_password = "test-dashboard-password"
+        os.environ["DASHBOARD_PASSWORD"] = test_password
         app = AppTest.from_file(REPOSITORY_ROOT / "app.py", default_timeout=30)
         app.run()
         self.assertFalse(app.exception)
 
-        app.text_input[0].input("dolomiti").run()
+        app.text_input[0].input(test_password).run()
         self.assertFalse(app.exception)
 
         comuni_years = next(

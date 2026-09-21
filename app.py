@@ -1,6 +1,11 @@
+import hmac
+import os
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from streamlit.errors import StreamlitSecretNotFoundError
+from comuni_ranking import build_comuni_ranking
 from etl import load_dati_comunali, load_provincia_belluno, load_stl_data
 
 # ======================
@@ -13,7 +18,15 @@ st.title("📊 Dashboard Turismo Veneto")
 # 🔐 ACCESSO
 # ======================
 password = st.text_input("Inserisci password", type="password")
-if password != "dolomiti":
+dashboard_password = os.environ.get("DASHBOARD_PASSWORD")
+if dashboard_password is None:
+    try:
+        dashboard_password = st.secrets["dashboard_password"]
+    except (KeyError, StreamlitSecretNotFoundError):
+        st.error("❌ Password della dashboard non configurata nei Secrets di Streamlit.")
+        st.stop()
+
+if not hmac.compare_digest(password, dashboard_password):
     if password:
         st.error("❌ Password errata. Riprova.")
     st.stop()
@@ -191,6 +204,98 @@ if not df_filtered.empty:
         st.dataframe(tabella_com.style.format(fmt, thousands="."), use_container_width=True)
 else:
     st.info("Nessun dato disponibile per creare la tabella di confronto.")
+
+# ======================
+# 🏆 CLASSIFICA COMUNI
+# ======================
+st.subheader("🏆 Classifica Comuni – variazione Presenze")
+
+if not anno_sel:
+    st.info("Seleziona almeno un anno per visualizzare la classifica dei Comuni.")
+else:
+    # Con più anni selezionati la classifica resta leggibile prendendo sempre
+    # come riferimento il più recente e confrontandolo con l'anno precedente.
+    anno_classifica = max(anno_sel)
+    classifica = build_comuni_ranking(data, anno_classifica, mesi_sel)
+
+    if classifica.data.empty:
+        st.info(
+            f"Non ci sono dati sufficienti per confrontare il {classifica.target_year} "
+            f"con il {classifica.comparison_year}."
+        )
+    else:
+        mesi_classifica = ", ".join(classifica.months)
+        st.caption(
+            f"La classifica considera sempre l'anno più recente selezionato: "
+            f"{classifica.target_year} rispetto al {classifica.comparison_year}. "
+            f"Periodo confrontato: {mesi_classifica}. Sono inclusi "
+            f"{classifica.eligible_municipalities} Comuni con dati completi "
+            f"e confrontabili nei due anni."
+        )
+        if classifica.excluded_municipalities:
+            st.caption(
+                f"Esclusi {classifica.excluded_municipalities} Comuni senza una "
+                f"base completa e confrontabile nel {classifica.comparison_year}."
+            )
+
+        def format_ranking_table(ranking_df):
+            display = ranking_df.rename(
+                columns={
+                    "comune": "Comune",
+                    "previous_value": f"Presenze {classifica.comparison_year}",
+                    "current_value": f"Presenze {classifica.target_year}",
+                    "difference": "Differenza",
+                    "variation_pct": "Variazione %",
+                }
+            )
+
+            def format_integer(value):
+                return f"{value:,.0f}".replace(",", ".")
+
+            def color_change(value):
+                if pd.isna(value):
+                    return "color: grey;"
+                if value > 0:
+                    return "color: green; font-weight: bold;"
+                if value < 0:
+                    return "color: red; font-weight: bold;"
+                return "color: grey;"
+
+            return (
+                display.style.format(
+                    {
+                        f"Presenze {classifica.comparison_year}": format_integer,
+                        f"Presenze {classifica.target_year}": format_integer,
+                        "Differenza": lambda value: f"{value:+,.0f}".replace(",", "."),
+                        "Variazione %": "{:+.2f}%",
+                    }
+                )
+                .map(color_change, subset=["Differenza", "Variazione %"])
+                .hide(axis="index")
+            )
+
+        migliori = classifica.data.head(5)
+        peggiori = classifica.data.tail(5).sort_values(
+            ["variation_pct", "difference", "comune"],
+            ascending=[True, True, True],
+            kind="stable",
+        )
+
+        col_migliori, col_peggiori = st.columns(2)
+        with col_migliori:
+            st.markdown("#### 📈 5 Comuni con la crescita maggiore")
+            st.dataframe(
+                format_ranking_table(migliori),
+                use_container_width=True,
+                hide_index=True,
+            )
+        with col_peggiori:
+            st.markdown("#### 📉 5 Comuni con la performance peggiore")
+            st.dataframe(
+                format_ranking_table(peggiori),
+                use_container_width=True,
+                hide_index=True,
+            )
 
 # ======================
 # 🏔️ PROVINCIA DI BELLUNO
