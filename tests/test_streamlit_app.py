@@ -18,6 +18,13 @@ class StreamlitAppTests(unittest.TestCase):
         app.text_input[0].input("dolomiti").run()
         self.assertFalse(app.exception)
 
+        comuni_years = next(
+            multiselect
+            for multiselect in app.sidebar.multiselect
+            if multiselect.label == "Anno (Comuni)"
+        )
+        self.assertEqual(comuni_years.value, [2025, 2026])
+
         sidebar_labels = [checkbox.label for checkbox in app.sidebar.checkbox]
         self.assertIn("📍 Mostra dati Provincia di Belluno", sidebar_labels)
         self.assertIn("📍 Mostra dati STL", sidebar_labels)
@@ -27,9 +34,24 @@ class StreamlitAppTests(unittest.TestCase):
         app.run()
 
         self.assertFalse(app.exception)
+        years_by_label = {
+            multiselect.label: multiselect.value
+            for multiselect in app.sidebar.multiselect
+        }
+        self.assertEqual(years_by_label["Anno (Provincia)"], [2025, 2026])
+        self.assertEqual(years_by_label["Anno (STL)"], [2025, 2026])
+
         headers = [header.value for header in app.header]
         self.assertIn("🏔️ Provincia di Belluno – Arrivi e Presenze mensili", headers)
         self.assertIn("🌄 STL Dolomiti – Arrivi e Presenze mensili", headers)
+
+        metrics_by_label = {metric.label: metric for metric in app.metric}
+        arrivi = metrics_by_label["Variazione complessiva Arrivi 2026 vs 2025"]
+        presenze = metrics_by_label["Variazione complessiva Presenze 2026 vs 2025"]
+        self.assertEqual(arrivi.value, "+27.849")
+        self.assertEqual(arrivi.delta, "+3.71%")
+        self.assertEqual(presenze.value, "+67.756")
+        self.assertEqual(presenze.delta, "+2.65%")
 
 
 if __name__ == "__main__":
