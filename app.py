@@ -274,8 +274,9 @@ else:
                 .hide(axis="index")
             )
 
-        migliori = classifica.data.head(5)
-        peggiori = classifica.data.tail(5).sort_values(
+        numero_comuni_classifica = 10
+        migliori = classifica.data.head(numero_comuni_classifica)
+        peggiori = classifica.data.tail(numero_comuni_classifica).sort_values(
             ["variation_pct", "difference", "comune"],
             ascending=[True, True, True],
             kind="stable",
@@ -283,14 +284,14 @@ else:
 
         col_migliori, col_peggiori = st.columns(2)
         with col_migliori:
-            st.markdown("#### 📈 5 Comuni con la crescita maggiore")
+            st.markdown("#### 📈 10 Comuni con la crescita maggiore")
             st.dataframe(
                 format_ranking_table(migliori),
                 use_container_width=True,
                 hide_index=True,
             )
         with col_peggiori:
-            st.markdown("#### 📉 5 Comuni con la performance peggiore")
+            st.markdown("#### 📉 10 Comuni con la performance peggiore")
             st.dataframe(
                 format_ranking_table(peggiori),
                 use_container_width=True,
