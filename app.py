@@ -208,7 +208,7 @@ else:
 # ======================
 # 🏆 CLASSIFICA COMUNI
 # ======================
-st.subheader("🏆 Classifica Comuni – variazione Arrivi e Presenze")
+st.subheader("🏆 Classifica ponderata Comuni – Arrivi e Presenze")
 
 if not anno_sel:
     st.info("Seleziona almeno un anno per visualizzare la classifica dei Comuni.")
@@ -240,6 +240,13 @@ else:
             f"{classifica.eligible_municipalities} Comuni con dati completi "
             f"e confrontabili nei due anni."
         )
+        st.caption(
+            f"Ordinamento ponderato per peso turistico: la quota di ogni Comune "
+            f"sul totale {metric_label.lower()} {classifica.comparison_year} dei "
+            f"Comuni confrontabili viene combinata con la sua variazione %. Il "
+            f"risultato è il contributo del Comune alla crescita o alla flessione "
+            f"complessiva, espresso in punti percentuali."
+        )
         if classifica.excluded_municipalities:
             st.caption(
                 f"Esclusi {classifica.excluded_municipalities} Comuni senza una "
@@ -256,6 +263,8 @@ else:
                     "current_value": current_column,
                     "difference": "Differenza",
                     "variation_pct": "Variazione %",
+                    "tourism_weight_pct": "Peso turistico %",
+                    "weighted_contribution_pp": "Contributo (p.p.)",
                 }
             )
 
@@ -278,30 +287,35 @@ else:
                         current_column: format_integer,
                         "Differenza": lambda value: f"{value:+,.0f}".replace(",", "."),
                         "Variazione %": "{:+.2f}%",
+                        "Peso turistico %": "{:.2f}%",
+                        "Contributo (p.p.)": "{:+.2f}",
                     }
                 )
-                .map(color_change, subset=["Differenza", "Variazione %"])
+                .map(
+                    color_change,
+                    subset=["Differenza", "Variazione %", "Contributo (p.p.)"],
+                )
                 .hide(axis="index")
             )
 
         numero_comuni_classifica = 10
         migliori = classifica.data.head(numero_comuni_classifica)
         peggiori = classifica.data.tail(numero_comuni_classifica).sort_values(
-            ["variation_pct", "difference", "comune"],
+            ["weighted_contribution_pp", "variation_pct", "comune"],
             ascending=[True, True, True],
             kind="stable",
         )
 
         col_migliori, col_peggiori = st.columns(2)
         with col_migliori:
-            st.markdown(f"#### 📈 10 Comuni con crescita maggiore – {metric_label}")
+            st.markdown(f"#### 📈 10 maggiori contributi alla crescita – {metric_label}")
             st.dataframe(
                 format_ranking_table(migliori),
                 use_container_width=True,
                 hide_index=True,
             )
         with col_peggiori:
-            st.markdown(f"#### 📉 10 Comuni con performance peggiore – {metric_label}")
+            st.markdown(f"#### 📉 10 maggiori contributi alla flessione – {metric_label}")
             st.dataframe(
                 format_ranking_table(peggiori),
                 use_container_width=True,

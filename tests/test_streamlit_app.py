@@ -31,11 +31,11 @@ class StreamlitAppTests(unittest.TestCase):
         ranking_titles = [markdown.value for markdown in app.markdown]
         for metric in ["Presenze", "Arrivi"]:
             self.assertIn(
-                f"#### 📈 10 Comuni con crescita maggiore – {metric}",
+                f"#### 📈 10 maggiori contributi alla crescita – {metric}",
                 ranking_titles,
             )
             self.assertIn(
-                f"#### 📉 10 Comuni con performance peggiore – {metric}",
+                f"#### 📉 10 maggiori contributi alla flessione – {metric}",
                 ranking_titles,
             )
 

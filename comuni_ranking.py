@@ -33,7 +33,9 @@ def build_comuni_ranking(
 
     Sono ammessi in classifica solo i Comuni con tutti i mesi richiesti presenti
     in entrambi gli anni. Questo evita che un mese mancante venga interpretato
-    come uno zero e alteri la variazione percentuale.
+    come uno zero e alteri la variazione percentuale. La graduatoria combina la
+    variazione percentuale con il peso del Comune sul totale dell'anno precedente:
+    il punteggio risultante misura il contributo alla variazione complessiva.
     """
 
     if metric not in {"arrivi", "presenze"}:
@@ -57,6 +59,8 @@ def build_comuni_ranking(
         "current_value",
         "difference",
         "variation_pct",
+        "tourism_weight_pct",
+        "weighted_contribution_pp",
     ]
     if not months:
         return ComuniRanking(
@@ -107,8 +111,15 @@ def build_comuni_ranking(
     ranking["variation_pct"] = (
         ranking["difference"] / ranking["previous_value"] * 100
     )
+    previous_total = ranking["previous_value"].sum()
+    ranking["tourism_weight_pct"] = (
+        ranking["previous_value"] / previous_total * 100
+    )
+    ranking["weighted_contribution_pp"] = (
+        ranking["tourism_weight_pct"] * ranking["variation_pct"] / 100
+    )
     ranking = ranking.sort_values(
-        ["variation_pct", "difference", "comune"],
+        ["weighted_contribution_pp", "variation_pct", "comune"],
         ascending=[False, False, True],
         kind="stable",
     ).reset_index(drop=True)

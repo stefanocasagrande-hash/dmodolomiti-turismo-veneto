@@ -87,6 +87,32 @@ class ComuniRankingTests(unittest.TestCase):
         self.assertEqual(beta["current_value"], 400)
         self.assertAlmostEqual(beta["variation_pct"], 100.0)
 
+    def test_ranking_weights_variation_by_tourism_volume(self) -> None:
+        weighted_data = pd.DataFrame(
+            [
+                {"anno": 2025, "mese": "Gen", "comune": "Grande", "presenze": 2000, "arrivi": 500},
+                {"anno": 2025, "mese": "Gen", "comune": "Piccolo", "presenze": 20, "arrivi": 10},
+                {"anno": 2026, "mese": "Gen", "comune": "Grande", "presenze": 2200, "arrivi": 550},
+                {"anno": 2026, "mese": "Gen", "comune": "Piccolo", "presenze": 40, "arrivi": 20},
+            ]
+        )
+
+        result = build_comuni_ranking(weighted_data, 2026, metric="presenze")
+
+        self.assertEqual(result.data.iloc[0]["comune"], "Grande")
+        grande = result.data[result.data["comune"].eq("Grande")].iloc[0]
+        piccolo = result.data[result.data["comune"].eq("Piccolo")].iloc[0]
+        self.assertAlmostEqual(grande["variation_pct"], 10.0)
+        self.assertAlmostEqual(piccolo["variation_pct"], 100.0)
+        self.assertGreater(
+            grande["weighted_contribution_pp"],
+            piccolo["weighted_contribution_pp"],
+        )
+        self.assertAlmostEqual(
+            result.data["tourism_weight_pct"].sum(),
+            100.0,
+        )
+
     def test_invalid_metric_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             build_comuni_ranking(self.data, 2026, metric="fatturato")
