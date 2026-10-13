@@ -88,10 +88,23 @@ class DashboardEtlTests(unittest.TestCase):
         self.assertFalse(provincia.empty)
         self.assertFalse(dolomiti.empty)
         self.assertFalse(belluno.empty)
-        self.assertEqual(int(comuni["anno"].max()), 2026)
+
+        latest_periods = []
+        for data in (comuni, provincia, dolomiti, belluno):
+            self.assertTrue(data["mese_num"].between(1, 12).all())
+            latest = (
+                data[["anno", "mese_num"]]
+                .drop_duplicates()
+                .sort_values(["anno", "mese_num"])
+                .iloc[-1]
+            )
+            latest_periods.append((int(latest["anno"]), int(latest["mese_num"])))
+
         self.assertEqual(
-            int(comuni.loc[comuni["anno"] == 2026, "mese_num"].max()),
-            7,
+            len(set(latest_periods)),
+            1,
+            f"Periodo più recente non allineato tra Comuni, Provincia e STL: "
+            f"{latest_periods}",
         )
 
 
