@@ -8,14 +8,25 @@
     "stl_sum_equals_belluno_province"
   ],
   "latest_period": {
-    "month": 7,
+    "month": 8,
     "year": 2026
   },
-  "rows": 4379,
+  "rows": 4444,
   "status": "passed",
   "warnings": {
-    "anomalies_over_200_percent_with_absolute_delta_over_1000": 89,
+    "anomalies_over_200_percent_with_absolute_delta_over_1000": 90,
     "sample": [
+      {
+        "ambito": "COMUNE",
+        "anno": 2026,
+        "mese_num": 8,
+        "metrica": "arrivi",
+        "provenienza": "Totale",
+        "territorio": "Agordo",
+        "territorio_codice": "25001",
+        "valore": 1495,
+        "variazione_percentuale": 242.1
+      },
       {
         "ambito": "COMUNE",
         "anno": 2022,
