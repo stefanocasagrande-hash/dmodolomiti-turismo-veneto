@@ -1,440 +1,386 @@
+"""Streamlit dashboard for the foreign markets of the Belluno destination."""
+
+from __future__ import annotations
+
+import importlib.util
 import os
-import streamlit as st
-import altair as alt
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
-import numpy as np
-from etl import load_data
-from sklearn.linear_model import LinearRegression
-import streamlit.components.v1 as components
+import plotly.express as px
+import streamlit as st
 
-# ---------------------------------------------------------
-# CONFIGURAZIONE BASE
-# ---------------------------------------------------------
-st.set_page_config(page_title="Presenze Turistiche Estero", layout="wide", page_icon="🌍")
-st.title("🌍 Presenze Turistiche Estero - STL DOLOMITI – Analisi per Paese di Provenienza")
-
-# ---------------------------------------------------------
-# INDIVIDUA LA CARTELLA DATI
-# ---------------------------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-candidates = [
-    os.path.join(BASE_DIR, "dati-paesi-di-provenienza"),
-    os.path.join(BASE_DIR, "paesi-di-provenienza", "dati-paesi-di-provenienza"),
-    os.path.join(BASE_DIR, "..", "paesi-di-provenienza", "dati-paesi-di-provenienza"),
-    os.path.join("/", "mount", "src", os.path.basename(BASE_DIR), "dati-paesi-di-provenienza"),
-]
-DATA_DIR = next((c for c in candidates if os.path.exists(c) and os.path.isdir(c)), None)
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+PROCESSED_FILE = os.path.join(PROJECT_ROOT, "data", "processed", "mercati_esteri.csv")
+LEGACY_DIR = os.path.join(BASE_DIR, "dati-paesi-di-provenienza")
 
-if DATA_DIR is None:
-    st.error("❌ La cartella 'dati-paesi-di-provenienza' non è stata trovata.")
-    st.stop()
+_etl_spec = importlib.util.spec_from_file_location(
+    "foreign_markets_etl", Path(BASE_DIR) / "etl.py"
+)
+if _etl_spec is None or _etl_spec.loader is None:
+    raise ImportError("Impossibile caricare il modulo ETL dei mercati esteri")
+_etl = importlib.util.module_from_spec(_etl_spec)
+_etl_spec.loader.exec_module(_etl)
+MONTHS = _etl.MONTHS
+add_winter_season = _etl.add_winter_season
+annual_market_comparison = _etl.annual_market_comparison
+load_market_data = _etl.load_market_data
+real_markets = _etl.real_markets
+winter_market_comparison = _etl.winter_market_comparison
 
-# ---------------------------------------------------------
-# CARICA I DATI
-# ---------------------------------------------------------
+ROSE = "#9B3A62"
+ROSE_LIGHT = "#D78396"
+GOLD = "#D39A5C"
+INK = "#26333D"
+GREEN = "#287D66"
+RED = "#B94A48"
+
+
+def format_int(value: float | int) -> str:
+    return f"{value:,.0f}".replace(",", ".")
+
+
+def format_pct(value: float | int) -> str:
+    if pd.isna(value):
+        return "—"
+    return f"{value:+.1f}%".replace(".", ",")
+
+
+def month_range(months: list[int]) -> str:
+    if not months:
+        return "—"
+    if len(months) == 12:
+        return "gennaio–dicembre"
+    return f"{MONTHS[min(months) - 1].lower()}–{MONTHS[max(months) - 1].lower()}"
+
+
+def display_table(frame: pd.DataFrame, formats: dict[str, str]) -> None:
+    st.dataframe(
+        frame.style.format(formats, na_rep="—"),
+        width="stretch",
+        hide_index=True,
+    )
+
+
+st.set_page_config(
+    page_title="Mercati esteri | Dolomiti Bellunesi",
+    page_icon="🌍",
+    layout="wide",
+)
+st.markdown(
+    f"""
+    <style>
+      [data-testid="stAppViewContainer"] {{background: #FBFAF8;}}
+      [data-testid="stMetric"] {{background: white; border: 1px solid #E9E4DF;
+        padding: 14px 16px; border-radius: 12px;}}
+      h1, h2, h3 {{color: {INK};}}
+      .market-note {{background:#F6EEF1; border-left:5px solid {ROSE};
+        padding:12px 16px; border-radius:8px; margin:8px 0 20px 0;}}
+      .scope-pill {{display:inline-block; background:{ROSE}; color:white;
+        padding:5px 11px; border-radius:999px; font-size:.82rem; font-weight:600;}}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+st.title("Mercati esteri delle Dolomiti Bellunesi")
+st.caption(
+    "Presenze turistiche per Paese di provenienza · dati ufficiali Regione Veneto"
+)
+
 try:
-    df_long = load_data(data_dir=DATA_DIR, prefix="presenze-dolomiti-estero")
-except Exception as e:
-    st.error(f"❌ Errore nel caricamento dati: {e}")
+    data, data_source = load_market_data(PROCESSED_FILE, LEGACY_DIR)
+except Exception as exc:
+    st.error(f"Impossibile caricare i dati dei mercati esteri: {exc}")
     st.stop()
 
-# ---------------------------------------------------------
-# FILTRI
-# ---------------------------------------------------------
-col1, col2, col3 = st.columns(3)
-with col1:
-    paesi = st.multiselect(
-        "🌐 Seleziona Paese/i:",
-        sorted(df_long["Paese"].unique()),
-        default=["Germania"] if "Germania" in df_long["Paese"].values else None
-    )
-with col2:
-    anni = st.multiselect(
-        "📅 Seleziona Anno/i:",
-        sorted(df_long["Anno"].unique()),
-        default=sorted(df_long["Anno"].unique())[-2:]
-    )
-with col3:
-    mesi = st.multiselect(
-        "🗓️ Seleziona Mese/i:",
-        [m for m in df_long["Mese"].cat.categories if m in df_long["Mese"].unique()],
-        default=[m for m in df_long["Mese"].cat.categories if m in df_long["Mese"].unique()]
+territories = sorted(data["territorio"].dropna().unique())
+preferred = "Provincia di Belluno (DMO)"
+default_territory = preferred if preferred in territories else territories[0]
+territory = st.selectbox(
+    "Ambito territoriale",
+    territories,
+    index=territories.index(default_territory),
+    help="La Provincia di Belluno è ottenuta sommando STL Dolomiti e STL Belluno.",
+)
+
+if data_source == "archivio":
+    st.warning(
+        "La dashboard sta usando l’archivio storico non automatizzato. "
+        "L’ambito disponibile è soltanto STL Dolomiti e l’ultimo anno può essere parziale."
     )
 
-# ---------------------------------------------------------
-# FILTRAGGIO
-# ---------------------------------------------------------
-df_filtered = df_long[
-    df_long["Paese"].isin(paesi)
-    & df_long["Anno"].isin(anni)
-    & df_long["Mese"].isin(mesi)
-]
+comparison, metadata = annual_market_comparison(data, territory)
+latest = int(metadata["latest"])
+previous = int(metadata["previous"])
+months = list(metadata["months"])
+latest_total = int(metadata["latest_total"])
+previous_total = int(metadata["previous_total"])
+total_delta = int(metadata["total_delta"])
+total_change = total_delta / previous_total * 100 if previous_total else np.nan
+top7 = comparison.head(7).copy()
+concentration = top7[latest].sum() / latest_total * 100 if latest_total else np.nan
 
-if df_filtered.empty:
-    st.warning("⚠️ Nessun dato trovato per i filtri selezionati.")
-    st.stop()
+st.markdown(
+    f'<span class="scope-pill">{territory}</span>', unsafe_allow_html=True
+)
+st.markdown(
+    f"""
+    <div class="market-note">
+      Confronto omogeneo <b>{month_range(months)} {latest}</b> rispetto allo stesso periodo
+      del {previous}. Le aggregazioni “Altri Paesi” sono escluse dalle classifiche.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-# ---------------------------------------------------------
-# CONFRONTO RAPIDO TRA ANNI SELEZIONATI (MESI DISPONIBILI)
-# ---------------------------------------------------------
-ultimo_anno = int(df_long["Anno"].max())
-if ultimo_anno in anni and len(anni) >= 2 and len(paesi) > 0:
-    anno_precedente = max([a for a in anni if a < ultimo_anno])
+k1, k2, k3, k4 = st.columns(4)
+k1.metric("Presenze straniere", format_int(latest_total), format_pct(total_change))
+k2.metric("Variazione assoluta", f"{total_delta:+,.0f}".replace(",", "."))
+k3.metric("Primo mercato", str(top7.iloc[0]["mercato"]))
+k4.metric("Quota dei primi 7", f"{concentration:.1f}%".replace(".", ","))
 
-    mesi_attivi = (
-        df_long[(df_long["Anno"] == ultimo_anno) & (df_long["Paese"].isin(paesi))]
-        .groupby("Mese", as_index=False)["Presenze"]
-        .sum()
+overview_tab, winter_tab, monthly_tab, portfolio_tab, method_tab = st.tabs(
+    [
+        "Quadro attuale",
+        "Focus inverno",
+        "Andamento mensile",
+        "Portafoglio mercati",
+        "Metodo e qualità",
+    ]
+)
+
+with overview_tab:
+    st.subheader("I mercati che contano di più")
+    st.write(
+        "La graduatoria combina volume, quota e contributo effettivo alla variazione "
+        "complessiva delle presenze straniere."
     )
-    mesi_attivi = mesi_attivi[mesi_attivi["Presenze"] > 0]["Mese"].tolist()
 
-    if len(mesi_attivi) > 0:
-        somma_ultimo = df_long[
-            (df_long["Anno"] == ultimo_anno) &
-            (df_long["Mese"].isin(mesi_attivi)) &
-            (df_long["Paese"].isin(paesi))
-        ]["Presenze"].sum()
+    table = top7[
+        ["mercato", previous, latest, "differenza", "variazione_pct", "quota_pct", "contributo_crescita_pct"]
+    ].copy()
+    table.columns = [
+        "Mercato", str(previous), str(latest), "Differenza", "Variazione %",
+        "Quota %", "Contributo alla variazione %",
+    ]
+    display_table(
+        table,
+        {
+            str(previous): "{:,.0f}", str(latest): "{:,.0f}", "Differenza": "{:+,.0f}",
+            "Variazione %": "{:+.1f}%", "Quota %": "{:.1f}%",
+            "Contributo alla variazione %": "{:+.1f}%",
+        },
+    )
 
-        somma_precedente = df_long[
-            (df_long["Anno"] == anno_precedente) &
-            (df_long["Mese"].isin(mesi_attivi)) &
-            (df_long["Paese"].isin(paesi))
-        ]["Presenze"].sum()
+    chart_data = comparison.head(10).sort_values(latest)
+    chart = px.bar(
+        chart_data,
+        x=latest,
+        y="mercato",
+        orientation="h",
+        color="variazione_pct",
+        color_continuous_scale=[RED, "#E8E2DE", GREEN],
+        color_continuous_midpoint=0,
+        labels={latest: f"Presenze {latest}", "mercato": "", "variazione_pct": "Var. %"},
+        text_auto=",.0f",
+    )
+    chart.update_layout(height=470, coloraxis_colorbar_title="Var. %", margin=dict(l=10, r=10))
+    st.plotly_chart(chart, width="stretch")
 
-        diff_assoluta = somma_ultimo - somma_precedente
-        diff_percentuale = (diff_assoluta / somma_precedente * 100) if somma_precedente != 0 else None
+    st.download_button(
+        "Scarica la tabella dei mercati",
+        data=comparison.to_csv(index=False).encode("utf-8"),
+        file_name=f"mercati_esteri_{latest}_{territory.lower().replace(' ', '_')}.csv",
+        mime="text/csv",
+    )
 
-        st.markdown("### 📊 Confronto rapido tra anni selezionati (mesi disponibili)")
-        st.markdown(
-            f"""
-            <div style="background-color:#f4f9ff;padding:15px;border-radius:10px;border-left:5px solid #004c6d;">
-                <b>Paese/i:</b> {', '.join(paesi)}<br>
-                <b>Periodo considerato:</b> Gennaio–{mesi_attivi[-1]}<br>
-                <b>Confronto:</b> {anno_precedente} → {ultimo_anno}<br><br>
-                <b>Presenze {anno_precedente}:</b> {somma_precedente:,.0f}<br>
-                <b>Presenze {ultimo_anno}:</b> {somma_ultimo:,.0f}<br>
-                <b>Variazione assoluta:</b> {diff_assoluta:+,}<br>
-                <b>Variazione percentuale:</b> {diff_percentuale:+.2f}% 
-            </div>
-            """,
-            unsafe_allow_html=True,
+with winter_tab:
+    st.subheader("Gli ultimi tre inverni completi")
+    st.caption("Inverno = dicembre dell’anno iniziale + gennaio, febbraio e marzo dell’anno successivo.")
+    try:
+        winter_table, winter_totals, seasons = winter_market_comparison(
+            data, territory, seasons_count=3, top_n=7
+        )
+        latest_winter, previous_winter = seasons[-1], seasons[-2]
+        winter_delta = int(winter_totals[latest_winter] - winter_totals[previous_winter])
+        winter_change = (
+            winter_delta / winter_totals[previous_winter] * 100
+            if winter_totals[previous_winter]
+            else np.nan
+        )
+        winter_concentration = (
+            winter_table[latest_winter].sum() / winter_totals[latest_winter] * 100
         )
 
-# ---------------------------------------------------------
-# GRAFICO PRINCIPALE
-# ---------------------------------------------------------
-st.subheader("📈 Andamento mensile delle presenze")
-chart = (
-    alt.Chart(df_filtered)
-    .mark_line(point=True)
-    .encode(
-        x=alt.X("Mese:N", sort=df_long["Mese"].cat.categories),
-        y=alt.Y("Presenze:Q", title="Numero presenze"),
-        color=alt.Color("Anno:N", legend=alt.Legend(title="Anno")),
-        strokeDash=alt.StrokeDash("Paese:N", legend=alt.Legend(title="Paese")),
-        tooltip=["Anno", "Mese", "Paese", "Presenze"]
-    )
-    .properties(height=450)
-)
-st.altair_chart(chart, use_container_width=True)
-
-# ---------------------------------------------------------------------------
-# 📊 DIFFERENZE TRA ANNI SELEZIONATI (robusta multi-anno) TABELLA COMPARATIVA
-# ---------------------------------------------------------------------------
-if len(anni) >= 2:
-    st.subheader("📊 Differenze tra anni selezionati")
-
-    # Pivot per Mese e Paese (come in precedenza)
-    pivot = (
-        df_filtered.pivot_table(
-            index=["Mese", "Paese"], columns="Anno", values="Presenze", aggfunc="sum"
+        w1, w2, w3 = st.columns(3)
+        w1.metric(
+            f"Presenze estere inverno {latest_winter}",
+            format_int(winter_totals[latest_winter]),
+            format_pct(winter_change),
         )
-        .fillna(0)
-        .reset_index()
-    )
+        w2.metric("Primo mercato invernale", winter_table.iloc[0]["mercato"])
+        w3.metric("Quota dei primi 7", f"{winter_concentration:.1f}%".replace(".", ","))
 
-    # Ordina gli anni e scegli gli ultimi due per il confronto
-    anni_sorted = sorted(anni)
-    anno_prec = anni_sorted[-2]
-    anno_corr = anni_sorted[-1]
+        winter_long = winter_table[["mercato", *seasons]].melt(
+            id_vars="mercato", var_name="Inverno", value_name="Presenze"
+        )
+        winter_chart = px.bar(
+            winter_long,
+            x="mercato",
+            y="Presenze",
+            color="Inverno",
+            barmode="group",
+            color_discrete_sequence=["#CAB9C0", ROSE_LIGHT, ROSE],
+            labels={"mercato": "", "Presenze": "Presenze"},
+        )
+        winter_chart.update_layout(height=470, legend_title_text="Inverno")
+        st.plotly_chart(winter_chart, width="stretch")
 
-    # Calcolo delle differenze solo tra gli ultimi due anni selezionati
-    pivot["Differenza assoluta"] = pivot[anno_corr] - pivot[anno_prec]
-    pivot["Differenza %"] = np.where(
-        pivot[anno_prec] != 0,
-        (pivot["Differenza assoluta"] / pivot[anno_prec]) * 100,
-        np.nan
-    ).round(2)
-
-    # Funzione di colorazione
-    def color_diff(val):
-        if pd.isna(val):
-            return "color:gray;"
-        elif val > 0:
-            return "color:green; font-weight:bold;"
-        elif val < 0:
-            return "color:red; font-weight:bold;"
-        else:
-            return "color:gray;"
-
-    # Messaggio descrittivo
-    st.markdown(
-        f"Confronto tra **{anno_corr}** e **{anno_prec}** (solo mesi comuni e Paesi filtrati)."
-    )
-
-    # Visualizzazione
-    st.dataframe(
-        pivot.style
-        .format({
-            anno_prec: "{:,.0f}",
-            anno_corr: "{:,.0f}",
-            "Differenza assoluta": "{:+,.0f}",
-            "Differenza %": "{:+.2f} %",
-        })
-        .map(color_diff, subset=["Differenza assoluta", "Differenza %"]),
-        use_container_width=True,
-    )
-
-else:
-    st.info("Seleziona almeno due anni per visualizzare il confronto delle differenze.")
-
-# ---------------------------------------------------------
-# 🏆 CLASSIFICA DEI 10 PAESI CON PIÙ PRESENZE
-# ---------------------------------------------------------
-st.subheader("🏆 Classifica dei 10 Paesi con più presenze")
-df_top = (
-    df_long[df_long["Anno"].isin(anni)]
-    .query("~Paese.str.contains('Totale', case=False, na=False)")
-    .groupby(["Anno", "Paese"], as_index=False)["Presenze"].sum()
-    .sort_values(["Anno", "Presenze"], ascending=[True, False])
-)
-df_top["Posizione"] = df_top.groupby("Anno")["Presenze"].rank(method="first", ascending=False).astype(int)
-df_top = df_top.groupby("Anno").head(10)
-
-for anno in sorted(df_top["Anno"].unique()):
-    subset = df_top[df_top["Anno"] == anno]
-    st.markdown(f"### 🗓️ Anno {anno}")
-    html = """
-    <style>.ranking-table{width:100%;border-collapse:collapse;font-family:Inter,sans-serif;font-size:15px;}
-    .ranking-table th{background-color:#004c6d;color:white;padding:8px;text-align:left;}
-    .ranking-table td{padding:8px;border-bottom:1px solid #ddd;}
-    .ranking-table tr:nth-child(even){background-color:#f9f9f9;}
-    .ranking-table tr:hover{background-color:#f1f1f1;}
-    .position{font-weight:bold;color:#004c6d;text-align:center;width:50px;}</style>
-    <table class="ranking-table"><thead><tr><th class="position">#</th><th>Paese</th><th style="text-align:right;">Presenze</th></tr></thead><tbody>
-    """
-    for _, r in subset.iterrows():
-        icon = "🥇" if r["Posizione"]==1 else "🥈" if r["Posizione"]==2 else "🥉" if r["Posizione"]==3 else r["Posizione"]
-        html += f"<tr><td class='position'>{icon}</td><td>{r['Paese']}</td><td style='text-align:right;'>{r['Presenze']:,}</td></tr>"
-    html += "</tbody></table>"
-    components.html(html, height=min(600, 60 + len(subset) * 30))
-
-# ---------------------------------------------------------
-# 🔍 ANALISI PATTERN E MERCATI PROMETTENTI (mesi comparabili)
-# ---------------------------------------------------------
-from sklearn.linear_model import LinearRegression
-import numpy as np
-import altair as alt
-
-st.markdown("""
-### 🔍 Analisi dei pattern e mercati promettenti
-Analizza **l’andamento delle presenze turistiche per ciascun Paese**, considerando solo i **mesi effettivamente alimentati nell’ultimo anno disponibile**.  
-I confronti tra anni sono quindi **omogenei e privi di distorsioni** dovute a mesi mancanti.
-""")
-
-# 🧾 Legenda
-with st.expander("📘 Legenda indicatori di questa sezione"):
-    st.markdown("""
-    - **Trend medio (mesi attivi)** → crescita media annua delle presenze (in numero di presenze).  
-    - **Variazione % ultimo anno** → variazione percentuale tra l’ultimo anno e quello precedente (solo mesi disponibili).  
-    - **Presenze ultimo anno (mesi attivi)** → totale presenze registrate nei mesi effettivamente alimentati dell’ultimo anno.  
-    - **Indice potenziale (0–100)** → combinazione normalizzata di trend e variazione percentuale recente.  
-    """)
-
-# Filtriamo fuori i totali
-df_filtrato = df_long[~df_long["Paese"].str.contains("Totale stranieri", case=False, na=False)]
-
-# Individua l'anno e mesi effettivamente alimentati
-ultimo_anno = int(df_filtrato["Anno"].max())
-mesi_attivi_ultimo = (
-    df_filtrato[df_filtrato["Anno"] == ultimo_anno]
-    .groupby("Mese", as_index=False)["Presenze"]
-    .sum()
-)
-mesi_attivi_ultimo = mesi_attivi_ultimo[mesi_attivi_ultimo["Presenze"] > 0]["Mese"].tolist()
-
-paesi_analisi = []
-for paese, dfp in df_filtrato.groupby("Paese"):
-    dfp_filtrato = dfp[dfp["Mese"].isin(mesi_attivi_ultimo)]
-    trend_data = dfp_filtrato.groupby("Anno")["Presenze"].sum().reset_index().sort_values("Anno")
-
-    if trend_data["Anno"].nunique() >= 3:
-        X = trend_data["Anno"].values.reshape(-1, 1)
-        y = trend_data["Presenze"].values
-        model = LinearRegression().fit(X, y)
-        slope = model.coef_[0]
-        pct_growth_recent = (y[-1] - y[-2]) / y[-2] * 100 if len(y) > 1 and y[-2] != 0 else np.nan
-
-        paesi_analisi.append({
-            "Paese": paese,
-            "Trend medio (mesi attivi)": slope,
-            "Variazione % ultimo anno": pct_growth_recent,
-            "Presenze ultimo anno (mesi attivi)": y[-1],
-        })
-
-df_pattern = pd.DataFrame(paesi_analisi)
-
-if not df_pattern.empty:
-    df_pattern["Indice potenziale"] = (
-        (df_pattern["Trend medio (mesi attivi)"].rank(pct=True) * 0.5) +
-        (df_pattern["Variazione % ultimo anno"].rank(pct=True) * 0.5)
-    ) * 100
-
-    df_pattern = df_pattern.sort_values("Indice potenziale", ascending=False)
-
-    # 🔹 Rimuoviamo le voci "Altri Paesi" dalla Top10 principale
-    df_reali = df_pattern[~df_pattern["Paese"].str.contains("Altri", case=False, na=False)]
-    top10_reali = df_reali.head(10)
-    altri = df_pattern[df_pattern["Paese"].str.contains("Altri", case=False, na=False)].head(5)
-
-    st.markdown(f"""
-#### 📊 Valutazione quantitativa dei mercati
-Analisi riferita ai mesi **{mesi_attivi_ultimo[0]}–{mesi_attivi_ultimo[-1]}** dell’anno **{ultimo_anno}**.  
-La classifica mostra i mercati con maggiore **trend di crescita** e **potenziale di sviluppo**.
-""")
-
-    st.dataframe(
-        top10_reali.style.format({
-            "Trend medio (mesi attivi)": "{:,.0f}",
-            "Variazione % ultimo anno": "{:+.2f} %",
-            "Indice potenziale": "{:.1f}",
-        }).background_gradient(subset=["Indice potenziale"], cmap="Greens"),
-        use_container_width=True,
-    )
-
-    if not altri.empty:
-        st.caption("💡 I gruppi 'Altri Paesi' rappresentano mercati minori aggregati e sono mostrati separatamente:")
-        st.dataframe(
-            altri[["Paese", "Indice potenziale", "Variazione % ultimo anno"]]
-            .style.format({"Indice potenziale": "{:.1f}", "Variazione % ultimo anno": "{:+.2f} %"}),
-            use_container_width=True,
+        winter_display = winter_table[
+            ["mercato", *seasons, "differenza", "variazione_pct", "quota_pct", "contributo_crescita_pct"]
+        ].copy()
+        winter_display.columns = [
+            "Mercato", *seasons, "Differenza ultimo inverno", "Variazione %",
+            "Quota %", "Contributo alla variazione %",
+        ]
+        display_table(
+            winter_display,
+            {
+                **{season: "{:,.0f}" for season in seasons},
+                "Differenza ultimo inverno": "{:+,.0f}", "Variazione %": "{:+.1f}%",
+                "Quota %": "{:.1f}%", "Contributo alla variazione %": "{:+.1f}%",
+            },
         )
 
-else:
-    st.info("Non ci sono abbastanza anni per identificare pattern statistici affidabili.")
+        latest_markets = winter_table["mercato"].tolist()
+        winter_rows = add_winter_season(real_markets(data))
+        profile = (
+            winter_rows[
+                (winter_rows["territorio"] == territory)
+                & (winter_rows["stagione"] == latest_winter)
+                & (winter_rows["mercato"].isin(latest_markets))
+            ]
+            .groupby(["mese_num", "mese"], observed=True)["presenze"]
+            .sum()
+            .reset_index()
+            .sort_values("mese_num", key=lambda values: values.map({12: 0, 1: 1, 2: 2, 3: 3}))
+        )
+        profile_chart = px.line(
+            profile,
+            x="mese",
+            y="presenze",
+            markers=True,
+            labels={"mese": "", "presenze": "Presenze dei primi 7 mercati"},
+        )
+        profile_chart.update_traces(line_color=GOLD, line_width=4, marker_size=9)
+        profile_chart.update_layout(height=320)
+        st.plotly_chart(profile_chart, width="stretch")
+    except ValueError as exc:
+        st.info(str(exc))
 
-# ---------------------------------------------------------
-# 🤖 ANALISI AUTOMATICA DEI PATTERN TURISTICI
-# ---------------------------------------------------------
-st.markdown("### 🤖 Analisi automatica dei pattern turistici")
+with monthly_tab:
+    st.subheader("Andamento mensile per mercato")
+    actual = real_markets(data)
+    market_options = sorted(actual.loc[actual["territorio"] == territory, "mercato"].unique())
+    default_markets = [market for market in comparison.head(5)["mercato"] if market in market_options]
+    selected_markets = st.multiselect("Mercati", market_options, default=default_markets)
 
-# 📘 Legenda - Classificazione dei pattern (nuova)
-with st.expander("📘 Legenda - Classificazione dei pattern turistici"):
-    st.markdown("""
-    - **Trend medio** → pendenza della crescita media delle presenze (unità: presenze/anno).  
-    - **Crescita % media annua (CAGR)** → crescita percentuale media annua.  
-    - **Indice di stagionalità (%)** → misura la variabilità mensile: valori alti indicano stagionalità marcata.  
-    - **Continuità crescita** → quota di anni in cui le presenze sono aumentate rispetto all’anno precedente.  
-    - **Pattern rilevato**:
-        - 📈 *Crescita costante*: trend positivo e continuità > 70%;  
-        - 🔁 *Ciclico / variabile*: trend positivo ma continuità ≤ 70%;  
-        - 📉 *In calo o stagnante*: trend negativo o stabile;  
-        - 🆕 *Nuovo mercato*: presenza recente o non ancora consolidata.
-    """)
-
-df_filtrato = df_filtrato.copy()
-pattern_results = []
-
-for paese, dfp in df_filtrato.groupby("Paese"):
-    dfp = dfp[dfp["Mese"].isin(mesi_attivi_ultimo)]
-    if dfp["Anno"].nunique() < 3:
-        continue
-
-    by_year = dfp.groupby("Anno")["Presenze"].sum().reset_index().sort_values("Anno")
-
-    X = by_year["Anno"].values.reshape(-1, 1)
-    y = by_year["Presenze"].values
-    model = LinearRegression().fit(X, y)
-    slope = model.coef_[0]
-    cagr = ((by_year["Presenze"].iloc[-1] / by_year["Presenze"].iloc[0]) ** (1 / (len(by_year) - 1)) - 1) * 100 if len(by_year) > 1 else np.nan
-
-    stagionalita_rel = dfp.groupby(["Anno", "Mese"])["Presenze"].sum().groupby("Anno").apply(lambda x: (x.std() / x.mean()) * 100).mean()
-
-    diff = by_year["Presenze"].diff()
-    anni_crescita = (diff > 0).sum()
-    anni_totali = len(by_year)
-    ratio_crescita = anni_crescita / max(anni_totali - 1, 1)
-
-    if slope > 0 and ratio_crescita > 0.7:
-        categoria = "📈 Crescita costante"
-    elif slope > 0 and ratio_crescita <= 0.7:
-        categoria = "🔁 Ciclico / variabile"
-    elif slope < 0:
-        categoria = "📉 In calo o stagnante"
+    available_years = sorted(int(year) for year in data["anno"].unique())
+    default_years = available_years[-3:]
+    selected_years = st.multiselect("Anni", available_years, default=default_years)
+    monthly = actual[
+        (actual["territorio"] == territory)
+        & (actual["mercato"].isin(selected_markets))
+        & (actual["anno"].isin(selected_years))
+    ]
+    if monthly.empty:
+        st.info("Seleziona almeno un mercato e un anno.")
     else:
-        categoria = "🆕 Nuovo mercato"
+        monthly_chart = px.line(
+            monthly,
+            x="mese",
+            y="presenze",
+            color="mercato",
+            line_dash="anno",
+            markers=True,
+            category_orders={"mese": MONTHS},
+            labels={"mese": "", "presenze": "Presenze", "mercato": "Mercato", "anno": "Anno"},
+        )
+        monthly_chart.update_layout(height=520)
+        st.plotly_chart(monthly_chart, width="stretch")
 
-    pattern_results.append({
-        "Paese": paese,
-        "Trend medio": slope,
-        "Crescita % media annua (CAGR)": cagr,
-        "Indice di stagionalità (%)": stagionalita_rel,
-        "Continuità crescita": f"{ratio_crescita*100:.1f}%",
-        "Pattern rilevato": categoria
-    })
+with portfolio_tab:
+    st.subheader("Volume e dinamica dei mercati")
+    st.write(
+        "La posizione mostra contemporaneamente il peso del mercato e la sua variazione. "
+        "Sono etichettati i primi 15 mercati per volume."
+    )
+    portfolio = comparison.head(15).copy()
+    portfolio["presenze_correnti"] = portfolio[latest]
+    portfolio["presenze_precedenti"] = portfolio[previous]
+    portfolio["dimensione"] = np.sqrt(portfolio[latest].clip(lower=1))
+    scatter = px.scatter(
+        portfolio,
+        x="quota_pct",
+        y="variazione_pct",
+        size="dimensione",
+        color="differenza",
+        text="mercato",
+        color_continuous_scale=[RED, "#E8E2DE", GREEN],
+        color_continuous_midpoint=0,
+        labels={
+            "quota_pct": f"Quota sulle presenze straniere {latest} (%)",
+            "variazione_pct": f"Variazione {previous}–{latest} (%)",
+            "differenza": "Differenza",
+            "presenze_correnti": f"Presenze {latest}",
+            "presenze_precedenti": f"Presenze {previous}",
+        },
+        hover_data={
+            "presenze_correnti": ":,.0f",
+            "presenze_precedenti": ":,.0f",
+            "dimensione": False,
+        },
+    )
+    scatter.add_hline(y=0, line_dash="dot", line_color="#888")
+    scatter.update_traces(textposition="top center")
+    scatter.update_layout(height=600, showlegend=False)
+    st.plotly_chart(scatter, width="stretch")
 
-df_patterns = pd.DataFrame(pattern_results)
-
-if not df_patterns.empty:
-    df_patterns = df_patterns[~df_patterns["Paese"].str.contains("Totale stranieri", case=False, na=False)]
-
-    st.markdown("#### Classificazione dei pattern turistici (mesi comparabili)")
-    st.dataframe(
-        df_patterns.sort_values("Trend medio", ascending=False)
-        .style.format({
-            "Trend medio": "{:,.0f}",
-            "Crescita % media annua (CAGR)": "{:+.2f} %",
-            "Indice di stagionalità (%)": "{:.1f} %",
-        })
-        .map(
-            lambda v: "color:#2ecc71;" if isinstance(v, str) and "Crescita" in v
-            else ("color:#e67e22;" if isinstance(v, str) and "Ciclico" in v
-            else ("color:#e74c3c;" if isinstance(v, str) and "calo" in v.lower()
-            else ("color:#1abc9c;" if isinstance(v, str) and "Nuovo" in v else ""))),
-            subset=["Pattern rilevato"]
-        ),
-        use_container_width=True,
+    threshold = latest_total * 0.005
+    expanding = comparison[
+        (comparison[latest] >= threshold) & (comparison["variazione_pct"] > 0)
+    ].sort_values("differenza", ascending=False).head(10)
+    st.markdown("#### Mercati in espansione con massa critica")
+    st.caption("Sono inclusi i mercati con almeno lo 0,5% delle presenze straniere del periodo.")
+    expanding_display = expanding[["mercato", latest, "differenza", "variazione_pct", "quota_pct"]].copy()
+    expanding_display.columns = ["Mercato", str(latest), "Differenza", "Variazione %", "Quota %"]
+    display_table(
+        expanding_display,
+        {str(latest): "{:,.0f}", "Differenza": "{:+,.0f}", "Variazione %": "{:+.1f}%", "Quota %": "{:.1f}%"},
     )
 
-    # 🔹 Mercati promettenti reali (senza "Altri Paesi")
-    promising = df_patterns[
-        df_patterns["Pattern rilevato"].isin(["📈 Crescita costante", "🔁 Ciclico / variabile"])
-        & (~df_patterns["Paese"].str.contains("Altri", case=False, na=False))
-    ].head(10)
+with method_tab:
+    st.subheader("Metodo, perimetro e qualità")
+    st.markdown(
+        """
+        - **Fonte:** Regione del Veneto – U.O. Sistema Statistico Regionale, dati Istat.
+        - **Indicatore:** presenze, cioè pernottamenti nelle strutture ricettive.
+        - **Provincia di Belluno (DMO):** somma delle serie ufficiali di STL Dolomiti e STL Belluno.
+        - **Mercati reali:** le classifiche escludono “Totale stranieri” e le aggregazioni “Altri Paesi”.
+        - **Confronti annuali:** l’anno più recente è confrontato con l’anno precedente sugli stessi mesi disponibili.
+        - **Inverno:** dicembre–marzo; sono considerate soltanto stagioni con tutti e quattro i mesi disponibili.
+        - **Contributo alla variazione:** differenza del singolo mercato divisa per la variazione complessiva delle presenze straniere.
+        - **Stato dei dati:** l’anno corrente è provvisorio; gli anni precedenti sono definitivi secondo la fonte.
+        """
+    )
+    latest_month = int(data.loc[data["anno"] == data["anno"].max(), "mese_num"].max())
+    st.info(
+        f"Ultimo periodo disponibile nel dataset: {MONTHS[latest_month - 1]} "
+        f"{int(data['anno'].max())}. Modalità di alimentazione: {data_source}."
+    )
 
-    if not promising.empty:
-        # 📘 Legenda per mercati promettenti (nuova)
-        with st.expander("📘 Legenda - Mercati potenzialmente promettenti"):
-            st.markdown("""
-            - **Criterio di selezione:** Paesi con *Pattern = Crescita costante* o *Ciclico/variabile* (senza aggregazioni “Altri ...”).  
-            - **Crescita % media annua (CAGR):** priorità ai mercati in crescita in termini percentuali.  
-            - **Indice di stagionalità (%):** più basso = mercato stabile e distribuito durante l’anno.  
-            - **Continuità crescita:** percentuale di anni con andamento positivo (>70% = solido).  
-            - **Nota:** le voci “Altri paesi ...” sono aggregazioni e **non** rappresentano singoli mercati analizzabili.
-            """)
-
-        st.markdown("#### 🌍 Mercati potenzialmente promettenti")
-        st.write("Mercati con **trend positivo**, **stagionalità moderata** e **continuità di crescita elevata**.")
-        st.table(
-            promising[["Paese", "Pattern rilevato", "Crescita % media annua (CAGR)", "Indice di stagionalità (%)", "Continuità crescita"]]
-            .sort_values("Crescita % media annua (CAGR)", ascending=False)
-        )
-
-else:
-    st.info("Non ci sono abbastanza dati per identificare pattern significativi.")
-
-# ---------------------------------------------------------
-# FOOTER
-# ---------------------------------------------------------
 st.markdown("---")
-st.caption("© 2025 Dashboard Fondazione D.M.O. Dolomiti Bellunesi - Per uso interno - Tutti i diritti riservati.")
+st.caption("Fondazione DMO Dolomiti Bellunesi · Dashboard interna")

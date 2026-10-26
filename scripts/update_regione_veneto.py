@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fetch_regione_veneto import fetch_official_data
+from fetch_mercati_esteri import fetch_foreign_market_data
 from normalize_turismo import normalize_official_data
 from validate_turismo import validate_file
 
@@ -33,6 +34,12 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--report", type=Path, default=Path("data/processed/validation_report.json")
     )
+    parser.add_argument(
+        "--markets-output",
+        type=Path,
+        default=Path("data/processed/mercati_esteri.csv"),
+    )
+    parser.add_argument("--skip-markets", action="store_true")
     parser.add_argument("--skip-summary", action="store_true")
     return parser.parse_args()
 
@@ -57,8 +64,18 @@ def main() -> None:
     )
     normalize_official_data(args.raw_root, args.output)
     validation = validate_file(args.output, args.report)
+    markets = (
+        None
+        if args.skip_markets
+        else fetch_foreign_market_data(
+            args.markets_output,
+            start_year=2020,
+            current_year=current_year,
+        )
+    )
     summary = {
         "fetch": fetch_result,
+        "foreign_markets": markets,
         "validation": {
             "status": validation["status"],
             "rows": validation["rows"],
