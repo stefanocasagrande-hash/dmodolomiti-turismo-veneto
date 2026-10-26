@@ -10,6 +10,7 @@ validato pubblicato dalla pipeline.
 - STL Dolomiti;
 - STL Belluno - Feltre - Alpago;
 - Comuni della provincia di Belluno: arrivi e presenze mensili;
+- presenze mensili per Paese estero negli STL Dolomiti e Belluno;
 - ultimo Excel riepilogativo pubblicato dalla Regione Veneto.
 
 I CSV e gli Excel originali sono conservati in `data/raw/regione_veneto/`. Il file
@@ -35,6 +36,12 @@ I mesi futuri pubblicati dalla Regione come zeri tecnici vengono esclusi. In
 questo modo uno zero non disponibile non entra in confronti, medie, trend o
 modelli predittivi.
 
+`data/processed/mercati_esteri.csv` contiene le presenze mensili per singolo
+Paese. Oltre ai due STL, produce l'ambito `Provincia di Belluno (DMO)` come
+somma verificata di STL Dolomiti e STL Belluno. Le aggregazioni residue della
+fonte (ad esempio “Altri paesi europei”) sono identificate separatamente e non
+entrano nelle classifiche dei mercati.
+
 ## Controlli bloccanti
 
 Prima della pubblicazione vengono verificati:
@@ -44,6 +51,7 @@ Prima della pubblicazione vengono verificati:
 - continuità dei mesi disponibili;
 - italiani + stranieri = totale;
 - STL Dolomiti + STL Belluno = Provincia di Belluno;
+- somma di Paesi e aggregazioni residuali = totale stranieri per ogni mese;
 - disponibilità di tutti i file attesi.
 
 Le variazioni superiori al 200%, con scarto assoluto maggiore di 1.000, vengono
